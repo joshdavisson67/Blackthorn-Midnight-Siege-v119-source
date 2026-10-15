@@ -1,0 +1,69 @@
+.menuLinks{display:flex;flex-wrap:wrap;gap:0 24px;max-width:680px}
+#menuVersion{display:inline-block;margin-left:8px;padding:3px 6px;border:1px solid #d4b77a66;color:var(--gold);font-size:11px;letter-spacing:.5px}
+#changelog{padding:16px}
+.changelogCard{width:min(1020px,100%);height:min(880px,calc(100vh - 32px));height:min(880px,calc(100dvh - 32px));min-width:0;min-height:0;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;overflow:hidden;border:1px solid #b8a37366;background:#0c171c;box-shadow:0 24px 90px #0009}
+.changelogHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:22px 28px;background:#132129;border-bottom:1px solid #b8a37333}
+.changelogHeader>div{min-width:0}
+.changelogHeader small{font-size:12px;letter-spacing:2px;color:var(--gold)}
+.changelogHeader h2{font-size:38px;line-height:1.1;margin:9px 0}
+.changelogHeader p{font-size:14px;line-height:1.5;color:#b3c4bd;margin:0}
+.changelogHeader button,.changelogFooter button{flex:none;min-height:44px;font-size:13px;letter-spacing:1px;padding:12px 16px}
+.changelogTools{display:flex;flex-wrap:wrap;align-items:end;gap:14px;padding:16px 28px;border-bottom:1px solid #b8a37333;background:#102027}
+.changelogTools label{display:flex;flex-direction:column;gap:7px;font-size:10px;letter-spacing:1.5px;color:#b6c4bc}
+.changelogSearchLabel{flex:1;min-width:220px}
+.changelogTools input,.changelogTools select{min-height:44px;max-width:100%;border:1px solid #63776b;background:#08151b;color:#e9e7df;font:14px Barlow,Arial,sans-serif;letter-spacing:0;padding:10px 12px;border-radius:0}
+.changelogTools input{width:100%}
+.changelogTools input::placeholder{color:#9aada6}
+.changelogBody{min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-color:#b8a373 #18272c;padding:20px 28px 28px;overflow-wrap:anywhere}
+.changelogBody:focus-visible{outline:2px solid var(--gold);outline-offset:-3px}
+.releaseEntry{background:#14242b;border:1px solid #76877944;margin-bottom:12px}
+.releaseEntry[open]{border-color:#b8a37377}
+.releaseHeading{display:grid;grid-template-columns:64px minmax(0,1fr) 114px 10px;align-items:center;gap:14px;padding:18px 20px;cursor:pointer;list-style:none}
+.releaseHeading::-webkit-details-marker{display:none}
+.releaseHeading::after{content:'';width:8px;height:8px;border-right:2px solid #d4b77a;border-bottom:2px solid #d4b77a;transform:rotate(45deg)}
+.releaseEntry[open]>.releaseHeading::after{transform:rotate(225deg)}
+.releaseHeading:hover{background:#1b2d34}
+.releaseHeading:focus-visible{outline:2px solid var(--gold);outline-offset:-3px}
+.releaseVersion{color:#edd2a0;font:600 22px 'Barlow Condensed',Arial,sans-serif}
+.releaseSummary{min-width:0}
+.releaseSummary strong{display:block;font-size:18px;line-height:1.45;font-weight:600;color:#e7e9df}
+.releaseMeta{display:block;margin-top:6px;font-size:11px;line-height:1.6;letter-spacing:.7px;color:#a7bbb2}
+.releaseCurrent{display:inline-block;margin-left:12px;padding:1px 6px;font-size:9px;letter-spacing:1px;border:1px solid #85f4d355;color:#85f4d3}
+.releaseHeading time{text-align:right;font-size:12px;color:#aabbaf}
+.releaseChanges{margin:0;padding:8px 26px 22px 106px;color:#cbd5d0;font-size:16px;line-height:1.65}
+.releaseChanges li{padding-left:4px;margin:9px 0}
+.releaseChanges li::marker{color:var(--gold)}
+.changelogEmpty{font-size:17px;line-height:1.6;color:#bccbc3;padding:20px 0}
+.changelogFooter{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 28px;background:#132129;border-top:1px solid #b8a37333}
+.changelogFooter p{font-size:13px;color:#bdcbc3;margin:0}
+.changelogFooter>span{font-size:9px;letter-spacing:1px;color:#94a79e}
+@media(max-width:640px){
+  #changelog{padding:8px}
+  .changelogCard{height:calc(100vh - 16px);height:calc(100dvh - 16px)}
+  .changelogHeader{padding:16px;gap:12px}
+  .changelogHeader small{font-size:10px;letter-spacing:1px}
+  .changelogHeader h2{font-size:30px}
+  .changelogHeader button{padding:10px;font-size:12px;white-space:nowrap}
+  .changelogTools{padding:12px 16px;gap:10px}
+  .changelogSearchLabel{flex-basis:100%;min-width:0}
+  .changelogTools label:not(.changelogSearchLabel){flex:1;min-width:0}
+  .changelogBody{padding:14px 16px 20px}
+  .releaseHeading{grid-template-columns:42px minmax(0,1fr) 10px;gap:10px;padding:14px}
+  .releaseHeading time{grid-column:2;text-align:left}
+  .releaseHeading::after{grid-column:3;grid-row:1}
+  .releaseVersion{align-self:start;font-size:20px}
+  .releaseSummary strong{font-size:16px}
+  .releaseChanges{padding:0 18px 16px 36px;font-size:15px}
+  .changelogFooter{padding:10px 16px}
+  .changelogFooter>span{display:none}
+}
+@media(max-height:450px){
+  .changelogHeader{padding:8px 16px;align-items:center}
+  .changelogHeader small,.changelogHeader p{display:none}
+  .changelogHeader h2{font-size:27px;margin:0}
+  .changelogTools{padding:8px 16px;flex-wrap:nowrap}
+  .changelogSearchLabel{flex-basis:auto;min-width:0}
+  .changelogTools input,.changelogTools select{min-height:36px;padding:6px;font-size:12px}
+  .changelogTools label{font-size:9px;gap:4px}
+  .changelogFooter{padding:6px 16px}
+}

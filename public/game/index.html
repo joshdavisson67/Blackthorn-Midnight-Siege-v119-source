@@ -1,0 +1,227 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Blackthorn — Midnight Siege</title><meta name="description" content="Survive the dead at Blackthorn Estate. A first-person browser survival shooter."><link rel="stylesheet" href="style.css?v=119"><link rel="stylesheet" href="changelog.css?v=119"></head><body>
+<canvas id="game" tabindex="0" aria-label="Blackthorn 3D zombie survival game"></canvas><div id="film"></div><div id="damage"></div><div id="nukeFlash" aria-hidden="true"></div><div id="eventPulse" aria-hidden="true"></div>
+<div id="hud" class="hidden">
+  <div class="topHud">
+    <div class="round"><small>WAVE</small><b id="wave">01</b><span id="waveState">THE DEAD ARE COMING</span><div id="curseHud" class="hidden" aria-label="Current curse rank"></div><div id="eventStatus" aria-label="World event status"></div></div>
+  </div>
+  <div id="hudNavigation" class="hudNavigation" role="group" aria-label="Compass and essence">
+    <canvas id="radar" width="330" height="330" aria-label="Compass, nearby enemies and supplies"></canvas>
+    <div class="score"><small>ESSENCE</small><b id="points">500</b><span><i id="kills">0</i> KILLS</span></div>
+  </div>
+  <div id="location">BLACKTHORN ESTATE <span> / FRONT COURTYARD</span></div>
+  <div id="crosshair" aria-hidden="true"></div>
+  <div id="reloadProgress" class="hidden" role="progressbar" aria-label="Reload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="reloadProgressFill"></div></div>
+  <div id="hit" aria-hidden="true">×</div><div id="headshotIndicator" aria-hidden="true">HEADSHOT</div><div id="damageDirections" aria-hidden="true"></div><div id="banner"></div><div id="toast"></div><div id="interaction"></div>
+  <div id="frenzyHud" class="hidden">FRENZY · SURVIVE THE CURRENT WAVE</div>
+  <div id="bottomHud">
+    <div id="hudVitals" class="hudVitals">
+      <div class="vitals">
+        <div id="healthReadout" class="healthReadout" role="group" aria-labelledby="healthLabel">
+          <svg class="vitalEmblem" viewBox="0 0 64 72" fill="none" aria-hidden="true" focusable="false">
+            <path d="M9 18 4 30l5 15-2 9 12 7 10 7m26-50 5 12-5 15 2 9-12 7-10 7M10 23l8 3-6 8m-4 7 10 2-7 7m44-27-9 3 7 8m3 7-10 2 7 7" stroke="#b59261" stroke-width="1.5"/>
+            <path d="m27 20-2-11 8-2 4 11 8-4 4 7-7 7c8 1 12 7 11 15-2 12-12 16-21 22-11-8-20-14-21-26-1-11 7-20 16-19Z" fill="#832638" stroke="#e2a28a" stroke-width="1.6"/>
+            <path d="m29 25 5 9-1 20m1-19 9-5m-10 8-10-3m10 9 11 3m-11 2-10 3M17 33l5-8m23 13 3 6" stroke="#d37a72" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="m28 9 1 9m6-9 3 9m-5 36-2 5" stroke="#f0c19a" stroke-width="1.2"/>
+            <path d="M7 10h6M51 10h6M32 1v5" stroke="#b59261" stroke-width="1.5"/>
+          </svg>
+          <small id="healthLabel">VITAL SIGNS</small><span id="health">100</span>
+          <div class="healthTrack"><div id="healthBar"></div></div>
+        </div>
+        <div id="armorHud" class="hidden" role="group" aria-labelledby="armorLabel">
+          <svg class="shieldEmblem" viewBox="0 0 72 80" fill="none" aria-hidden="true" focusable="false">
+            <path class="aegisPlate" d="m36 13 24 8-2 27-10 14-12 9-12-9-10-14-2-27Z" fill="#17343f" stroke="currentColor" stroke-width="2"/>
+            <path class="aegisPlate" d="m36 22 16 5-2 19-7 10-7 6-7-6-7-10-2-19Zm0 3v31M24 38h24" stroke="currentColor" stroke-width="1.4" opacity=".7"/>
+            <g class="nanoCircuit" stroke="currentColor" stroke-width="1.5">
+              <path d="m36 15 23 13v27L36 69 13 55V28Zm0 10 15 8v17l-15 9-15-9V33Z"/>
+              <path d="M36 16v9m23 3-8 5m8 22-8-5M36 69V59M13 55l8-5M13 28l8 5M5 37h8m46 0h8M5 47h8m46 0h8"/>
+              <path class="nanoCore" d="m36 32 10 6v11l-10 6-10-6V38Z" fill="currentColor" fill-opacity=".3" stroke-width="2"/>
+              <path class="nanoRankMark2" d="M30 40v7m12-7v7M8 22l5-4m46 0 5 4M8 62l5 4m46 0 5-4" stroke-width="2.2"/>
+              <path class="nanoRankMark3" d="M27 40v7m9-7v7m9-7v7M36 2v8M20 5l4 8M52 5l-4 8M7 12l8 6m50-6-8 6M3 70l10-5m56 5-10-5M36 73v5" stroke-width="2.2"/>
+            </g>
+            <path class="shieldFracture" d="m41 20-9 15 11 6-13 11 8 9" stroke="currentColor" stroke-width="2"/>
+            <circle class="shieldChargeLight" cx="59" cy="20" r="3" fill="currentColor"/>
+          </svg>
+          <small id="armorLabel">AEGIS SHIELD</small><b id="armorValue">0 / 100</b>
+          <div class="armorTrack"><div id="armorBar"></div></div><small id="armorStatus" class="hidden"></small>
+        </div>
+      </div>
+      <div id="perks"></div>
+    </div>
+    <div class="hudEquipment">
+      <div id="powerups" aria-label="Active power-ups"></div>
+      <div class="weaponHud"><small id="weaponName">GLOCK 21 / .45 PISTOL</small><b><span id="ammo">13</span><em> / </em><span id="reserve">78</span></b><div id="reloadStatus">R RELOAD <span> · </span> G GRENADE <span id="grenades">3</span></div></div>
+    </div>
+  </div>
+  <div id="fps"></div>
+</div>
+<aside id="curseNotice" class="hidden" aria-labelledby="curseNoticeTitle">
+  <img class="curseNoticeSeal" src="assets/curse-seal.svg?v=109" width="64" height="64" alt="" aria-hidden="true">
+  <small>THE BLACKTHORN CURSE · THE BELL IS CALLING</small><h2 id="curseNoticeTitle">The house demands an answer.</h2>
+  <p>Go to the <strong>hanging bell in the Great Rotunda</strong> on the ground floor. Click the bell or press <kbd>E</kbd> at its rope to embrace or resist.</p>
+  <div class="curseTime"><small>BEFORE THE DEAD RISE AGAIN</small><div id="curseCountdown" class="curseClock" role="timer" aria-label="Time left to reach the bell">1:00</div></div>
+  <p class="curseNoticeFoot">Find <strong>BL</strong> on the <kbd>M</kbd> map · Next wave starts automatically when time expires.</p>
+</aside>
+<section id="curseChoice" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="curseChoiceTitle" aria-describedby="curseChoiceWarning">
+  <div class="curseCard">
+    <header class="curseHeading"><div class="curseTitleBlock"><img class="curseSeal" src="assets/curse-seal.svg?v=109" width="72" height="72" alt="" aria-hidden="true"><div><small>THE BLACKTHORN CURSE</small><h2 id="curseChoiceTitle">Embrace the corruption?</h2></div></div><button id="curseClose" type="button" class="textBtn">PAUSE · ESC</button></header>
+    <div class="curseTime"><small>THE BELL WILL NOT WAIT</small><div id="curseDialogCountdown" class="curseClock" role="timer" aria-label="Time left to choose">1:00</div></div>
+    <div id="curseChoiceBody" class="curseChoiceBody">
+      <p class="curseOath">A sweeter reward. A hungrier grave.</p>
+      <div class="curseRanks"><div><small>YOUR CURRENT MARK</small><strong id="curseCurrent">RANK 0 · Uncursed</strong></div><div><small>THE HOUSE'S OFFER</small><strong id="curseNext">RANK 1 · The Whispered</strong></div></div>
+      <table class="curseTable"><caption>The terms of your damnation</caption><thead><tr><th scope="col">EFFECT</th><th scope="col">CURRENT</th><th scope="col">EMBRACE</th></tr></thead><tbody id="curseComparison"></tbody></table>
+      <p id="curseChoiceWarning">Every rank binds you until this run ends. Embrace adds one permanent rank; Resist keeps your current rank. Either choice starts a 7-second countdown before the next wave. If the full minute expires, you keep your rank and the next wave starts immediately.</p>
+      <p class="curseLimits">Bonuses apply to newly earned essence and score. Enemy speed bonus caps at +100%; special frequency at +100%. At most 32 enemies are alive at once. The bell calls immediately after waves 4, 9, 14, 19, and every five waves thereafter.</p>
+    </div>
+    <footer class="curseActions"><button id="curseEmbrace" type="button">EMBRACE · RANK 1</button><button id="curseResist" type="button" class="secondary">RESIST · KEEP RANK 0</button></footer>
+  </div>
+</section>
+<section id="menu">
+  <div class="menuContent">
+    <div class="eyebrow"><span></span> THE HOUSE REMEMBERS</div>
+    <p class="menuGameTitle">CALL OF ZOMBIES</p>
+    <h1 class="slashedTitle" aria-label="Blackthorn"><span class="titleLetters" aria-hidden="true"><span class="titleBlack">BLACK</span><span class="titleThorn">THORN</span></span><img class="titleWounds" src="assets/blackthorn-wounds.svg?v=50" width="400" height="240" alt="" aria-hidden="true"></h1>
+    <div class="menuTagline">
+      <p class="subtitle">M I D N I G H T &nbsp; S I E G E</p>
+      <p class="estateTagline">The gates are sealed. The dead are awake.</p>
+    </div>
+    <button id="start">ENTER THE ESTATE <span>→</span></button>
+    <p class="intro">Enter locks your mouse. Esc releases it and pauses.</p>
+    <div class="menuMeta"><span>12 CONNECTED SECTIONS</span><span>∞ ESCALATING WAVES</span><span>4 PERKS</span></div>
+    <nav class="menuLinks" aria-label="Estate menu"><button id="leaderboardMenu" class="textBtn">SHARED LEADERBOARD</button><button id="howBtn" class="textBtn">CONTROLS & FIELD GUIDE</button><button id="changelogMenu" class="textBtn hidden" hidden type="button" aria-haspopup="dialog" aria-controls="changelog">CHANGE LOG <span id="menuVersion"></span></button></nav>
+    <p class="best" id="best"></p>
+  </div>
+  <div class="menuBottom"><span>HEADPHONES RECOMMENDED</span><div><label>QUALITY <select id="quality"><option value="high">HIGH</option><option value="ultra">ULTRA</option><option value="low">PERFORMANCE</option></select></label><label>SENSITIVITY <input id="sensitivity" type="range" min="0.5" max="2" step="0.1" value="1"></label><label><input id="sound" type="checkbox" checked> SOUND</label></div></div>
+</section>
+<section id="changelog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="changelogTitle" aria-describedby="changelogRange">
+  <div class="changelogCard">
+    <header class="changelogHeader"><div><small>BLACKTHORN / RELEASE HISTORY</small><h2 id="changelogTitle">The estate evolves.</h2><p id="changelogRange"></p></div><button id="closeChangelog" class="secondary" type="button" aria-label="Close changelog">CLOSE · ESC</button></header>
+    <div class="changelogTools">
+      <label class="changelogSearchLabel">SEARCH UPDATES<input id="changelogSearch" type="search" placeholder="Weapons, enemies, fixes… or v1" autocomplete="off"></label>
+      <label>CATEGORY<select id="changelogFilter"><option value="">All changes</option></select></label>
+      <label>ORDER<select id="changelogSort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>
+    </div>
+    <div id="changelogBody" class="changelogBody" tabindex="0" role="region" aria-label="Release notes"></div>
+    <footer class="changelogFooter"><p id="changelogCount" role="status" aria-live="polite"></p><span>SELECT AN UPDATE TO EXPAND</span><button id="changelogDone" class="secondary" type="button">BACK TO MENU</button></footer>
+  </div>
+</section>
+<section id="pause" class="modal hidden">
+  <aside id="pauseCurse" aria-labelledby="pauseCurseHeading">
+    <h2 id="pauseCurseHeading">THE BLACKTHORN CURSE</h2>
+    <div class="pauseCurseMark"><img src="assets/curse-seal.svg?v=109" width="48" height="48" alt="" aria-hidden="true"><div><strong id="pauseCurseRank">RANK 0</strong><span id="pauseCurseTitle">Uncursed</span></div></div>
+    <small class="pauseCurseLabel">CURRENT CURSE EFFECTS</small>
+    <dl class="pauseCurseStats">
+      <div><dt>Enemy speed</dt><dd data-curse-stat="speed">0%</dd></div>
+      <div><dt>Essence &amp; score earned</dt><dd data-curse-stat="reward">0%</dd></div>
+      <div><dt>Special enemy frequency</dt><dd data-curse-stat="special">0%</dd></div>
+      <div><dt>Enemy health</dt><dd data-curse-stat="health">0%</dd></div>
+      <div><dt>Enemies per wave</dt><dd data-curse-stat="population">0%</dd></div>
+    </dl>
+    <p id="pauseCurseNote">No curse accepted. The house has yet to leave its mark.</p>
+  </aside>
+  <div class="card"><small>BLACKTHORN ESTATE</small><h2 id="pauseTitle">Catch your breath.</h2><p id="pauseText">The dead can wait a moment.</p><div id="captureHelp" class="hidden"><p>Click Retry and allow mouse control if asked. Check that mouse control is allowed in your browser’s site permissions.</p></div>
+  <div class="pauseSetting">
+    <span>MINIMAP POSITION</span>
+    <button id="minimapToggle" type="button" role="switch" aria-checked="false" aria-label="Minimap at bottom left" aria-describedby="minimapSettingHint"><span data-minimap-position>TOP RIGHT</span><span class="pauseToggleTrack" aria-hidden="true"><i></i></span></button>
+    <small id="minimapSettingHint">Bottom left sits above health and shield. Your choice is saved.</small>
+  </div>
+  <div class="pauseSetting">
+    <span>HEADSHOT INDICATOR</span>
+    <button id="headshotToggle" type="button" role="switch" aria-checked="true" aria-label="Headshot text indicator" aria-describedby="headshotSettingHint"><span data-headshot-setting>ON</span><span class="pauseToggleTrack" aria-hidden="true"><i></i></span></button>
+    <small id="headshotSettingHint">Show a brief HEADSHOT label beneath your sights. Your choice is saved.</small>
+  </div>
+  <button id="resume">LOCK MOUSE &amp; RESUME →</button><button id="restart" class="secondary">NEW RUN</button><button id="mapPause" class="textBtn">ESTATE MAP</button><button id="leaderboardPause" class="textBtn">SHARED LEADERBOARD</button><button id="guidePause" class="textBtn">CONTROLS & FIELD GUIDE</button></div></section>
+<section id="guide" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="guideTitle" aria-describedby="guideHint">
+  <div class="guideCard">
+    <header class="guideHeading">
+      <div><small>BLACKTHORN / FIELD GUIDE</small><h2 id="guideTitle">Stay alive. Spend wisely.</h2></div>
+      <button id="closeGuide" class="secondary" type="button" aria-label="Close field guide">CLOSE · ESC</button>
+    </header>
+    <div id="guideBody" class="guideBody" tabindex="0" role="region" aria-label="Field guide instructions">
+      <nav class="guideNav" aria-label="Jump to a field guide section">
+        <a href="#guideControls">Controls</a><a href="#guideSurvival">Survival</a><a href="#guideEnemies">Enemies</a><a href="#guideSupplies">Supplies &amp; perks</a><a href="#guidePowerups">Power-ups</a><a href="#guideEstate">Explore the estate</a><a href="#guideCurse">The Blackthorn Curse</a>
+      </nav>
+      <section id="guideControls" class="guideSection">
+        <div class="guideSectionHeading"><span>01</span><h3>Move &amp; fight</h3></div>
+        <dl class="guideControls">
+          <div><dt><kbd>W A S D</kbd></dt><dd>Move</dd></div><div><dt><kbd>SHIFT</kbd></dt><dd>Sprint</dd></div>
+          <div><dt><kbd>MOUSE</kbd></dt><dd>Look around</dd></div><div><dt><kbd>SPACE</kbd></dt><dd>Jump</dd></div>
+          <div><dt><kbd>LEFT CLICK</kbd></dt><dd>Fire</dd></div><div><dt><kbd>RIGHT CLICK</kbd></dt><dd>Aim</dd></div>
+          <div><dt><kbd>R</kbd></dt><dd>Reload</dd></div><div><dt><kbd>G</kbd></dt><dd>Throw a grenade</dd></div>
+          <div><dt><kbd>1 2 3 4 5 6</kbd></dt><dd>Switch weapons · 1 Glock · 2 shotgun · 3 SMG · 4 LMG · 5 Bushmaster · 6 M4</dd></div><div><dt><kbd>E</kbd></dt><dd>Use or buy</dd></div>
+          <div><dt><kbd>F</kbd></dt><dd>Flashlight</dd></div><div><dt><kbd>M</kbd></dt><dd>Current floor map</dd></div>
+          <div><dt><kbd>ESC</kbd></dt><dd>Release mouse / pause</dd></div>
+        </dl>
+        <p>Click Enter the Estate to start and lock your mouse. Press Esc to release it and pause, then click Resume to lock it again. Use the pause menu’s Minimap Position toggle to choose top right or bottom left above health and shield; your choice is saved for future visits. Grenades have a short throwing animation; the gun lowers until the arm retracts.</p>
+      </section>
+      <section id="guideSurvival" class="guideSection">
+        <div class="guideSectionHeading"><span>02</span><h3>Survive the night</h3></div>
+        <p>Earn essence with hits, kills, and headshots. Clearing a wave earns a bonus. Each new wave brings faster, tougher enemies. Spend essence on weapons, ammo, and upgrades to keep up.</p>
+        <p>Enemies have solid bodies and can block doorways and stairs when they crowd together. Shoot a gap to get through. Press <kbd>M</kbd> to plan a route using the map of your current floor.</p>
+        <div class="guideCallout"><strong>Make every bullet count</strong><p>Headshots give a sharp audio cue, a gold hit mark and a stronger head reaction, even when the target survives. Toggle the small HEADSHOT label in the pause menu. Head, torso, arm and leg hits produce different flinches, and fatal shots can knock enemies back, twist them, drop a shoulder or buckle their knees.</p><p>Each weapon has its own kick and recovery. The Glock’s punch, the Raven’s lighter rapid fire and the heavier shotgun, LMG and Bushmaster feel different. A well-placed Glock headshot can briefly interrupt an ordinary zombie. Repeated powerful hits can stagger a brute. Stagger has a recovery window, so keep moving and firing.</p><p>Brief arrows around your sights point toward whoever hit you. Red means health damage; blue means your shield absorbed the whole hit. They follow your view as you turn.</p></div>
+        <div class="guideCallout"><strong>Random world events · From wave 3</strong><p>Each eligible wave has a 40% chance of a world event. Events never occur on consecutive waves, and only one can be active at once. Watch for the name and warning before it begins; the HUD shows its effects and remaining time. Pausing freezes events, and clearing the wave ends them. All three events award 20% more essence per kill while active, including headshots and every enemy type. Hit rewards and wave-clear bonuses keep their usual values.</p><div class="guideTiles">
+          <article><h4>The Shroud · 30 seconds</h4><p>An eerie call warns of thick cemetery fog. Long-range visibility drops across the outdoor grounds, especially the cemetery. Interior rooms stay clear. Expect distant zombies to disappear into the mist. Kills award 20% more essence while the fog is active.</p></article>
+          <article><h4>The Surge · 25 seconds</h4><p>A supernatural pulse makes standard zombies move 20% faster and recover their attacks faster. All enemy types award 20% more kill essence during the event. Hit rewards and wave-clear bonuses stay the same. Dogs, Ashfang hounds, ferals and brutes keep their own movement speeds.</p></article>
+          <article><h4>Grave Awakening</h4><p>Three old graves glow and tremble for four seconds before six extra zombies rise into the current wave. While the dead rise, kills award 20% more essence. Defeat the reinforcements to finish the wave. Each drops a gold essence crystal worth 25 bonus essence; walk over it within 30 seconds to collect it.</p></article>
+        </div></div>
+        <div class="guideCallout"><strong>Blood Rage</strong><p>Every kill gives each living enemy within 6 meters a 15% chance to become enraged: double movement speed and 25% more damage. Watch for the red glow and bright red radar blips. It affects all enemy types, lasts until they die, and does not stack.</p></div>
+        <p>At the end of your run, you can enter your name on the shared leaderboard. Your score is all essence earned, including what you spent. Your highest curse rank and its title are recorded with your run. Scores persist as the game is updated.</p>
+      </section>
+      <section id="guideEnemies" class="guideSection">
+        <div class="guideSectionHeading"><span>03</span><h3>Know the dead</h3></div>
+        <div class="guideTiles">
+          <article><h4>Zombie dogs</h4><p>Low, fast quadrupeds with lunging bites. Both dog variants gain speed with the same wave progression as ordinary zombies.</p></article>
+          <article><h4>Frenzied finale <small>END OF WAVE 5</small></h4><p>After the normal wave-5 enemies are cleared, 17 more arrive: 13 regular zombies and four brutes. The finale uses frenzy’s 40% faster movement and accelerated spawns. Defeat all 17 to finish wave 5; normal Blood Rage can still enrage nearby survivors.</p></article>
+          <article><h4>Ashfang hounds <small>FROM WAVE 6</small></h4><p>Rare hounds with bone-plated skulls, dorsal spines, and glowing red eyes. They move 50% faster than the standard zombie baseline and have twice a normal dog’s health.</p></article>
+          <article><h4>Feral stalkers <small>FROM WAVE 7</small></h4><p>Roughly one in eight enemies is a lean, pale zombie with glowing red eyes and claws. Ferals move at 3× normal wave speed and hit twice as hard. Enraged Ferals reach 6× speed and 2.5× damage.</p></article>
+        </div>
+        <p><strong>From wave 11:</strong> enemies also spawn in upstairs rooms and can descend to pursue you.</p>
+      </section>
+      <section id="guideSupplies" class="guideSection">
+        <div class="guideSectionHeading"><span>04</span><h3>Spend wisely</h3></div>
+        <div class="guideCallout"><strong>Glock 21 / .45 pistol · Starter weapon</strong><p>Every new run begins with the Glock 21, a 13-round magazine, and 78 reserve rounds. Click once per shot and hold right mouse to aim through its open iron sights. Press <kbd>R</kbd> to reload and <kbd>1</kbd> to equip it. Supply crates, Max Ammo, Deadeye, Quickhands, and all three Soul Forge ranks work with the pistol. Buy the M4 inside the wave-7 shed for 4,500 essence; press <kbd>6</kbd> to equip it after purchase.</p></div>
+        <p>Buy weapons in the library and dining room. Upstairs, look for shotgun and SMG racks, plus the .450 Bushmaster in the east study. Supply crates in the courtyard, portrait gallery, infirmary, and observatory restock every owned weapon. Ammo purchases and Max Ammo leave your current magazine unchanged and preserve any reload already in progress. They include enough spare rounds to leave both magazine and reserves full after reloading.</p>
+        <div class="guideCallout"><strong>AR-15 / .450 Bushmaster · 2,500 essence</strong><p>Find the olive-stock rifle rack upstairs in the east study, marked BM on the estate map. It has a 15-round magazine, 90 reserve rounds, and twice the M4’s damage. Press 5 to equip it. Click once per shot; holding fire does not repeat. Hold right mouse for its clear 10× precision scope. Ammo refills and the Soul Forge work with this rifle too.</p></div>
+        <p><strong>Grenade blast.</strong> Grenades deal 450 damage within the inner 75% of their 12-meter blast radius (up to 9 meters). The outer 25% deals half damage (225). Walls and solid floors block the blast. Stay clear of nearby explosions.</p>
+        <h4>Permanent perks <small>LAST FOR THIS RUN</small></h4>
+        <dl class="guidePerks">
+          <div><dt><span aria-hidden="true">♥</span> Ironheart <b>2,500</b></dt><dd>Double maximum health.</dd></div>
+          <div><dt><span aria-hidden="true">ϟ</span> Quickhands <b>1,500</b></dt><dd>Faster reloads.</dd></div>
+          <div><dt><span aria-hidden="true">◎</span> Deadeye <b>2,000</b></dt><dd>More weapon damage.</dd></div>
+          <div><dt><span aria-hidden="true">»</span> Nightstride <b>1,500</b></dt><dd>Faster movement.</dd></div>
+        </dl>
+        <div class="guideCallout"><strong>Soul Forge · 3 ranks per weapon</strong><p>Find the iron anvil beneath a hovering violet soul stone on the first floor or against the back wall of the storm cellar. The cellar forge is reachable after the storm doors open at wave 10. Rank 1 costs 5,000 essence, Rank 2 costs 10,000, and Rank 3 costs 15,000. Ranks 1, 2, and 3 set your weapon damage to 2×, 4×, and 6× its base damage. Each rank still reduces reload time by 25% and multiplies magazine and reserve capacity by 1.25; these ammo and reload bonuses compound. Ammo capacities round up after multiplying the base capacity for your rank. Quickhands stacks with every rank. Each weapon tracks its own rank at both forges; switching weapons updates the next rank and price. Forging keeps your carried rounds, so reload or buy ammo to fill the increased capacity. All ranks reset with a new run.</p></div>
+        <p><strong>Aegis armor · 2,500 essence.</strong> Buy a vest in the storm cellar or upstairs east study to gain a separate shield equal to your maximum health. Armor absorbs damage before health. Ironheart also scales its remaining protection.</p><p><strong>Nano Shield Rank 1 · 5,000 essence.</strong> After buying Aegis, both original armor stations offer Rank 1. Your shield regenerates at 5 shield per second after 5 seconds without a hit.</p><p><strong>Nano Shield Rank 2 · 7,500 essence.</strong> Buying Rank 1 unlocks the gold Rank 2 emitter at those same stations in the storm cellar and upstairs east study. Press <kbd>E</kbd> at either station to upgrade: recharge now starts after 3 seconds without a hit and restores 10 shield per second.</p><p><strong>Nano Shield Rank 3 · 20,000 essence.</strong> Buy Rank 2 to unlock the emitter with gold rays at both armor stands. Rank 3 restores 15 shield per second continuously, with no start delay. Taking hits no longer interrupts shield regeneration.</p><p>Each rank can be bought once per run. All ranks keep your current shield amount and capacity and recover even from zero shield, up to full. Hits restart the recharge delay for Ranks 1 and 2; Rank 3 keeps regenerating during combat. Recharging pauses with the game and stops when you die.</p>
+      </section>
+      <section id="guidePowerups" class="guideSection">
+        <div class="guideSectionHeading"><span>05</span><h3>Power-ups</h3></div>
+        <p>Walk over a dropped pickup to collect it. Recognize the effect by its icon.</p>
+        <div class="guideTiles">
+          <article><h4>Ammo box · Max Ammo</h4><p>Restocks every owned weapon without loading its magazine. Reload to fill it; your reserves will still be full. Grants one grenade.</p></article>
+          <article><h4>×2 · Double Damage</h4><p>Double bullet damage for 20 seconds. Relic shrines sell it for 800 essence.</p></article>
+          <article><h4>Grenade · Infinite Grenades</h4><p>Unlimited grenades for 12 seconds, with a 0.5-second cooldown after each throw animation. Press <kbd>G</kbd> to throw. Relic shrines sell it for 900 essence.</p></article>
+        </div>
+        <p>Timed-bonus shrines are available on both floors.</p>
+      </section>
+      <section id="guideEstate" class="guideSection">
+        <div class="guideSectionHeading"><span>06</span><h3>Explore the estate</h3></div>
+        <h4>The second floor</h4><p>Take the grand hall staircase to find all four perks, shotgun and SMG racks, ammunition, timed-bonus shrines, and an Aegis armor vest in the east study. The doors at the ends of both wing corridors open onto steel landings and exterior stairways to the grounds. Use them in either direction; zombies and Bella can follow. Remember: upstairs enemy spawns begin at wave 11.</p>
+        <div class="guideCallout"><strong>Bella / Immortal Maltipoo · 670 essence</strong><p>Find Bella’s kennel against the rear wall of the upstairs west bedchamber, marked B on the floor map. Approach the kennel and press <kbd>E</kbd> to free her once per run. Bella follows you through the estate and its stairs, and automatically bites living undead within 12 yards of you, including dogs, ferals and brutes. Walls and floors block bites. She has no health, cannot be hurt, and does not block your movement. Her kills earn regular body-kill rewards toward your essence and shared score. Pausing stops her movement and attacks; a new run returns her to her kennel.</p></div>
+        <h4>The groundskeeper’s shed <small>OPENS AT WAVE 7</small></h4><p>Explore the north grounds beside the storm cellar to find a weathered timber shed. Its barred doors blow open automatically when wave 7 begins. A notification announces that a door has blown open somewhere. Approach the M4 on the rear workbench and press <kbd>E</kbd> to purchase it for <strong>4,500 essence</strong>, once per run. It equips the M4 with a full magazine and reserve, keeping its Soul Forge ranks. Press <kbd>6</kbd> to equip it later; enemies can follow you inside.</p>
+        <h4>The storm cellar <small>OPENS AT WAVE 10</small></h4><p>Find the twin storm doors on the north grounds, opposite the starting courtyard. Descend to the armory and press <kbd>E</kbd> to buy the Warden LMG for 5,000 essence. Select it with <kbd>4</kbd>. It carries 100 rounds and 500 reserve and can be purchased once per run. Hold right mouse to aim through its clear 3× combat scope; release to return to the wider view. The Soul Forge stands against the back wall between the LMG and armor stations, facing into the room. Its three weapon ranks are shared with the first-floor forge.</p>
+        <div class="guideCallout warning"><strong>Taking the LMG triggers a frenzy</strong><p>Enemies move 40% faster, spawns speed up, and reinforcements arrive for the rest of your current wave.</p></div>
+        <h4>The family cemetery <small>MAUSOLEUM OPENS AFTER WAVE 20</small></h4><p>Follow the east grounds through the iron gateway into the graveyard. The Blackthorn mausoleum opens automatically after you clear wave 20. Explore its stone chamber and sarcophagus, but enemies can follow you inside.</p>
+        <div class="guideCallout"><strong>The Last Dawn / Nuke · 20,000 essence</strong><p>Once the mausoleum opens, find the radiation-marked device against its side wall. Approach it inside the tomb and press E to activate it once per run. It destroys every living, currently spawned enemy across the entire estate, including hounds, ferals, and brutes. Each earns the normal body-kill bounty: 50 essence, or 110 for a brute, with The Surge’s extra 20% when active and your curse reward multiplier. Grave-born enemies also drop their gold essence. It also counts toward your kills and shared score. Queued enemies still spawn normally. An empty estate keeps the device armed without charging you.</p></div>
+      </section>
+      <section id="guideCurse" class="guideSection">
+        <div class="guideSectionHeading"><span>07</span><h3>The Blackthorn Curse</h3></div>
+        <p>As soon as wave 4 is cleared, before wave 5 starts, the Great Rotunda bell calls. A large message and a <strong>one-minute countdown</strong> direct you to its ground-floor rope, marked <strong>BL</strong> on the map. Approach and click the bell or press <kbd>E</kbd> to choose. You can restock and move while the countdown runs.</p>
+        <div class="guideTiles"><article><h4>Embrace</h4><p>Add one curse rank. Its difficulty and rewards stack permanently for this run, and the next wave starts after a 7-second countdown.</p></article><article><h4>Resist</h4><p>Keep your current rank and start a 7-second countdown before the next wave. Letting the full minute expire keeps your rank and starts the wave immediately.</p></article></div>
+        <p>The choice returns immediately after waves 9, 14, 19, 24 and every five waves afterward, even if you resisted or ignored it before. Curse choices replace the normal next-wave countdown. Choosing Embrace or Resist gives you 7 seconds to prepare; a full-minute timeout starts the next wave immediately. Other wave clears keep their usual restock countdown. Pausing, maps and other menus pause the countdown. The timer continues while you read the bell choice; once it expires, the menu closes. Mouse lock is restored through Resume if your browser requires it.</p>
+        <p>Each rank adds <strong>15% enemy speed</strong>, <strong>25% newly earned essence and score</strong>, and <strong>10% relative special enemy frequency</strong>. All enemy types receive the speed bonus and keep their existing type, rage and frenzy modifiers. Speed and special frequency bonuses each cap at +100%, with the existing limit of 32 living enemies. Rank 3 begins adding 20% enemy health per further rank; Rank 4 begins adding 15% enemies per wave per further rank. Your existing essence and score never get multiplied, and purchase prices stay the same.</p>
+        <p>Titles: 0 Uncursed · 1 The Whispered · 2 The Marked · 3 The Forsaken · 4 The Damned · 5 Blackthorn’s Chosen · 6+ Endless Corruption. Pause with <kbd>ESC</kbd> to see your current rank, title and curse modifiers at the upper left of the pause screen. The shared leaderboard records your highest curse rank and title alongside your earned score. A new run resets the curse.</p>
+      </section>
+    </div>
+    <footer class="guideFooter"><p id="guideHint">Scroll to read · ↑ ↓ / Page Up / Page Down</p><button id="guideDone" class="secondary" type="button">GOT IT →</button></footer>
+  </div>
+</section>
+<section id="estateMap" class="modal hidden" aria-label="Estate map"><div class="mapCard"><div class="mapHeading"><div><small>BLACKTHORN ESTATE</small><h2>Know your way out.</h2></div><button id="closeEstateMap" class="secondary">CLOSE · M / ESC</button></div><canvas id="estateMapCanvas" width="680" height="660" aria-label="Map of your current floor, supply stations, and your position"></canvas><p><span>▲ YOU</span> &nbsp; Map follows your current floor · Colored squares mark supplies and perks<br>Survival is paused here. Close or press M to resume; Esc returns to pause.</p></div></section><section id="leaderboard" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardTitle"><div class="card leaderboardCard"><div class="leaderboardHeading"><div><small>BLACKTHORN / SHARED SCORES</small><h2 id="leaderboardTitle">The house remembers.</h2></div><button id="leaderboardClose" class="textBtn" aria-label="Close leaderboard">BACK · ESC</button></div><p class="leaderboardIntro">One shared board for everyone with the game link. Scores stay here as the estate grows.</p><p id="runSummary" class="runSummary hidden"></p><form id="scoreForm" class="hidden"><label id="pendingRunPickerLabel" for="pendingRunPicker" class="hidden">UNSAVED RUN<select id="pendingRunPicker" aria-label="Choose an unsaved completed run"></select></label><label for="leaderboardName">YOUR NAME</label><div class="scoreFormRow"><input id="leaderboardName" name="name" type="text" maxlength="48" autocomplete="nickname" placeholder="Enter your name" required><button id="leaderboardSubmit" type="submit">ADD MY SCORE</button></div></form><p id="scoreSaveStatus" role="status" aria-live="polite"></p><div class="leaderboardTools"><p id="leaderboardStatus" role="status" aria-live="polite">Top 50 runs · Highest score first · Updates every 15s</p><button id="leaderboardRefresh" class="textBtn">REFRESH</button></div><div class="leaderboardTableWrap"><table><thead><tr><th scope="col">RANK</th><th scope="col">SURVIVOR</th><th scope="col">SCORE</th><th scope="col">WAVE</th><th scope="col">KILLS</th><th scope="col">CURSE / TITLE</th><th scope="col">TIME</th></tr></thead><tbody id="leaderboardRows"></tbody></table></div><p class="leaderboardNote">Score is total essence earned during your run, including what you spent. Ties favor higher waves, then kills.</p><button id="leaderboardNewRun" class="secondary hidden">NEW RUN →</button></div></section><div id="loading">PREPARING THE ESTATE <span>...</span></div><div id="error" class="hidden"><h2>The estate could not open.</h2><p id="errorDetails"></p><button id="retry" class="secondary">RELOAD GAME</button></div><script src="boot.js?v=119" defer></script></body></html>
