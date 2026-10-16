@@ -2,6 +2,10 @@ import * as T from './three.module.js';
 
 export const LIGHT_BUDGET=Object.freeze({environment:6,combat:2,cachedFixtures:12});
 const POINT_SIZE={low:192,high:256,ultra:384};
+// Moon and flashlight filtering cover every lit pixel. Performance quality
+// uses one plane-aware sample instead of sixteen; lamp occlusion is unchanged.
+export const SHADOW_FILTER={low:T.BasicShadowMap,high:T.PCFSoftShadowMap,ultra:T.PCFSoftShadowMap};
+const patchedMaterials=new Set();
 
 // Four spatial samples, no history buffer. Reconstruct a light's world ray
 // from the existing view position instead of eight additional shadow varyings.
@@ -87,7 +91,7 @@ export function patchLightingMaterial(material){
         .replace('pointLightShadow.shadowCameraFar )','pointLightShadow.shadowCameraFar, estateShadowNormal )'));
   };
   material.customProgramCacheKey=()=>key+'|estate-lighting-75';
-  material.userData.estateLighting=true;material.needsUpdate=true;
+  material.userData.estateLighting=true;material.needsUpdate=true;patchedMaterials.add(material);
 }
 
 export function prepareLightingMaterials(root){
@@ -214,6 +218,13 @@ export function createLighting({renderer,scene,world,camera,moonlight,flashlight
   function setQuality(value){
     if(value===quality)return;quality=value;invalidate();
     renderer.shadowMap.enabled=true;
+    const filter=SHADOW_FILTER[value]??SHADOW_FILTER.high;
+    // Three bakes the filter type into each program but does not watch it.
+    if(renderer.shadowMap.type!==filter){
+      renderer.shadowMap.type=filter;
+      for(const material of patchedMaterials)material.needsUpdate=true;
+      scene.traverse(object=>{if(object.material)for(const material of Array.isArray(object.material)?object.material:[object.material])material.needsUpdate=true;});
+    }
     for(const binding of bindings.values()){
       binding.empty.dispose();binding.empty.map=null;configure(binding.empty);
     }
