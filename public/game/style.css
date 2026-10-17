@@ -155,11 +155,11 @@
 .pauseSetting{margin:20px 0 8px;padding:14px 0;border-top:1px solid #a7b1a32a;border-bottom:1px solid #a7b1a32a}
 .pauseSetting>span{display:block;color:var(--gold);font-size:10px;letter-spacing:2px;margin-bottom:10px}
 .pauseSetting>small{display:block;font-size:11px;line-height:1.5;color:#acbab7;margin-top:9px}
-#minimapToggle,#headshotToggle{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:11px 13px;border:1px solid #596660;background:#101f26;color:var(--ivory);font-size:12px;letter-spacing:1.5px;text-align:left}
+#minimapToggle,#headshotToggle,#touchToggle{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:11px 13px;border:1px solid #596660;background:#101f26;color:var(--ivory);font-size:12px;letter-spacing:1.5px;text-align:left}
 .pauseToggleTrack{display:flex;align-items:center;width:38px;height:22px;padding:3px;flex:none;border:1px solid #81938c77;border-radius:12px;background:#071015}
 .pauseToggleTrack i{width:14px;height:14px;flex:none;border-radius:50%;background:#a7b7ae;transition:transform .15s}
-#minimapToggle[aria-checked=true] .pauseToggleTrack,#headshotToggle[aria-checked=true] .pauseToggleTrack{border-color:var(--gold);background:#4d422b}
-#minimapToggle[aria-checked=true] .pauseToggleTrack i,#headshotToggle[aria-checked=true] .pauseToggleTrack i{background:var(--gold);transform:translateX(16px)}
+#minimapToggle[aria-checked=true] .pauseToggleTrack,#headshotToggle[aria-checked=true] .pauseToggleTrack,#touchToggle[aria-checked=true] .pauseToggleTrack{border-color:var(--gold);background:#4d422b}
+#minimapToggle[aria-checked=true] .pauseToggleTrack i,#headshotToggle[aria-checked=true] .pauseToggleTrack i,#touchToggle[aria-checked=true] .pauseToggleTrack i{background:var(--gold);transform:translateX(16px)}
 
 #hit[data-headshot=true]{font-size:43px;text-shadow:0 0 8px #cf7d334d}
 #headshotIndicator{position:absolute;left:50%;top:calc(50% + 38px);transform:translateX(-50%);font:600 12px 'Barlow Condensed',Arial,sans-serif;letter-spacing:2px;color:#f2c879;text-shadow:0 1px 3px #000;opacity:0;pointer-events:none}
@@ -351,3 +351,61 @@ body:has(.modal:not(.hidden)) .vitalEmblem,body:has(.modal:not(.hidden)) .shield
 @media(max-height:700px){#curseNotice{padding:14px 24px}.curseNoticeSeal{width:42px;height:42px;margin-bottom:6px}#curseNotice h2{font-size:28px;margin:6px 0 10px}#curseNotice p{font-size:16px}.curseTime{margin:10px 0 12px}.curseClock{font-size:52px}.curseCard{padding:18px 24px}.curseSeal{width:56px;height:56px}.curseHeading h2{font-size:29px}.curseOath{font-size:17px;margin-bottom:12px}.curseRanks{margin-bottom:14px}}
 @media(max-width:600px){#curseChoice{padding:12px}.curseCard{max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);padding:18px}.curseHeading{gap:10px}.curseTitleBlock{gap:10px}.curseSeal{width:44px;height:44px}.curseHeading small{font-size:9px;letter-spacing:1.7px}.curseHeading h2{font-size:24px}.curseHeading .textBtn{font-size:10px}.curseRanks{grid-template-columns:1fr;gap:10px}.curseActions{grid-template-columns:1fr;gap:8px;padding-top:12px}.curseActions button{padding:12px;min-height:48px;font-size:13px}.curseTable{font-size:13px}.curseTable th{font-size:9px;letter-spacing:.7px}.curseTable th:first-child{width:50%}.curseTable td,.curseTable th{padding:8px 5px}.curseRanks strong{font-size:18px}#curseChoiceWarning{font-size:14px}#curseNotice{padding:16px 22px}#curseNotice h2{font-size:27px}#curseNotice p{font-size:15px}#curseNotice>small{font-size:10px;letter-spacing:1.5px}}
 @media(max-height:450px){#curseNotice{top:12px;padding:12px 24px}.curseNoticeSeal{display:none}#curseNotice h2{font-size:24px;margin:5px 0 8px}#curseNotice p{font-size:14px}.curseTime{margin:6px 0}.curseTime>small{font-size:9px;letter-spacing:1.5px}.curseClock{font-size:40px}.curseCard{padding:14px 20px}.curseSeal{width:40px;height:40px}.curseHeading h2{font-size:24px}.curseActions{grid-template-columns:1fr 1fr;padding-top:10px}.curseActions button{padding:10px 8px;min-height:44px;font-size:12px}}
+
+/* Touch controls (v121). Thumb zones cover the screen during touch play; the
+   buttons follow phone-shooter conventions and respect notch safe areas. */
+body.touch-playing{touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#touchControls,#touchRotate{display:none}
+body.touch-playing #touchControls{display:block;position:fixed;inset:0;z-index:6;touch-action:none;--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);--sb:env(safe-area-inset-bottom,0px)}
+.touchZone{position:absolute;touch-action:none}
+.touchLookZone{inset:0}
+.touchMoveZone{left:0;top:18%;bottom:0;width:42%}
+.touchStick{position:absolute;left:calc(var(--sl) + 116px);top:68%;width:112px;height:112px;margin:-56px 0 0 -56px;border-radius:50%;border:1px solid #d4b77a40;background:radial-gradient(circle,#0a131800 40%,#0a131855);opacity:.45;pointer-events:none;transition:opacity .15s}
+.touchStick i{position:absolute;left:32px;top:32px;width:48px;height:48px;border-radius:50%;background:#d4b77a55;border:1px solid #d4b77acc;box-shadow:0 2px 10px #0008}
+.touchStick.engaged{opacity:1;transition:none}
+.touchStick.sprinting{border-color:var(--gold);box-shadow:0 0 0 3px #d4b77a33}
+.touchStick.sprinting i{background:var(--gold)}
+.touchButton{position:absolute;display:grid;place-items:center;padding:0;border-radius:50%;border:1px solid #c9d2c74d;background:#0a1318a6;color:#e9e6d8;font:600 11px/1 'Barlow Condensed',Impact,sans-serif;letter-spacing:1.5px;touch-action:none;box-shadow:0 2px 12px #0007;backdrop-filter:blur(2px)}
+.touchButton span{pointer-events:none}
+.touchButton.pressed,.touchButton.held{background:#d4b77a59;border-color:var(--gold);color:#fff}
+.touchButton.on{border-color:var(--gold);color:var(--gold);background:#3a311fb0}
+#touchFire{right:calc(var(--sr) + 24px);bottom:calc(var(--sb) + 28px);width:88px;height:88px;border:2px solid #d4b77acc;font-size:14px;letter-spacing:2.5px;background:#4a1e1ab0}
+#touchAim{right:calc(var(--sr) + 124px);bottom:calc(var(--sb) + 22px);width:62px;height:62px}
+#touchJump{right:calc(var(--sr) + 40px);bottom:calc(var(--sb) + 132px);width:56px;height:56px}
+#touchReload{right:calc(var(--sr) + 118px);bottom:calc(var(--sb) + 98px);width:52px;height:52px;font-size:10px}
+#touchGrenade{right:calc(var(--sr) + 196px);bottom:calc(var(--sb) + 30px);width:50px;height:50px}
+#touchUse{right:calc(var(--sr) + 190px);bottom:calc(var(--sb) + 112px);width:62px;height:62px;display:none;border:2px solid var(--gold);color:var(--gold);background:#3a311fd0;font-size:13px}
+#touchUse.available{display:grid;animation:touchUsePulse 1.2s ease-in-out infinite}
+@keyframes touchUsePulse{50%{box-shadow:0 0 0 6px #d4b77a33,0 2px 12px #0007}}
+#touchSwap{right:calc(var(--sr) + 112px);bottom:calc(var(--sb) + 160px);width:46px;height:46px;font-size:10px;display:none}
+#touchSwap.available{display:grid}
+#touchPause,#touchMap,#touchLight{top:10px;width:42px;height:42px;border-radius:10px;font-size:10px}
+#touchPause{left:calc(var(--sl) + 12px);font-size:14px;letter-spacing:0}
+#touchMap{left:calc(var(--sl) + 62px)}
+#touchLight{left:calc(var(--sl) + 112px)}
+@media(prefers-reduced-motion:reduce){#touchUse.available{animation:none}}
+/* Touch HUD: a compact layout that keeps every readout clear of the thumbs.
+   Top-left: pause/map/light, then the wave. Top-right: compass and essence.
+   Bottom centre, between the stick and the buttons: health and ammo. */
+body.touch-playing #hud{--hud-map-size:92px;--hud-stack-gap:4px}
+body.touch-playing .topHud{top:58px;left:calc(env(safe-area-inset-left,0px) + 14px);right:auto}
+body.touch-playing .round b{font-size:34px}
+body.touch-playing .round span{margin-top:2px}
+body.touch-playing .hudNavigation{top:8px;right:calc(env(safe-area-inset-right,0px) + 12px)}
+body.touch-playing .hudNavigation .score{width:auto}
+body.touch-playing .score b{font-size:24px}
+body.touch-playing #location{top:12px;max-width:calc(100% - 420px);font-size:8px}
+body.touch-playing #bottomHud{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 6px);left:calc(env(safe-area-inset-left,0px) + 186px);right:calc(env(safe-area-inset-right,0px) + 256px);gap:10px;align-items:flex-end;pointer-events:none}
+body.touch-playing .vitals{width:150px}
+body.touch-playing .vitals>span{font-size:18px}
+body.touch-playing .weaponHud b{font-size:30px}
+body.touch-playing .weaponHud em{font-size:17px}
+body.touch-playing .weaponHud small{font-size:8px;letter-spacing:1.5px}
+body.touch-playing #reloadStatus{font-size:10px;letter-spacing:1px}
+body.touch-playing #perks{height:24px;gap:5px}
+body.touch-playing #perks span{width:22px;height:22px;font-size:13px}
+body.touch-playing #powerups{gap:4px}
+body.touch-playing #fps{right:auto;left:calc(env(safe-area-inset-left,0px) + 166px);top:24px;bottom:auto}
+body.touch-playing #interaction{bottom:auto;top:58%;font-size:11px}
+@media(orientation:portrait){body.touch-playing #touchRotate{display:grid;place-content:center;gap:10px;position:fixed;inset:0;z-index:20;background:#030a0ef2;text-align:center;color:#e9e6d8;font:500 13px/1.5 Barlow,Arial,sans-serif;letter-spacing:1px}
+#touchRotate b{font:600 22px/1.2 'Barlow Condensed',Impact,sans-serif;letter-spacing:3px;color:var(--gold)}}

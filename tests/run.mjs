@@ -249,3 +249,6 @@ verifySoulForge(qa,frames,listeners,elements);
 
 const {verifyWorldEvents}=await import('./world-events.mjs');
 verifyWorldEvents(qa,frames,listeners,elements);
+
+const {verifyTouchControls}=await import('./touch.mjs');
+verifyTouchControls(qa,frames,listeners,elements,document,gameCanvas);
