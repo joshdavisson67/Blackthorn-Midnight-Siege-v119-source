@@ -1,0 +1,34 @@
+# Publishes the playable game (public/game) to GitHub Pages whenever main
+# changes. The shared leaderboard needs the Cloudflare server and is not
+# available on Pages; the game itself is fully static.
+name: Publish game to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ['public/game/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public/game
+      - id: deployment
+        uses: actions/deploy-pages@v4
