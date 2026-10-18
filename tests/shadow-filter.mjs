@@ -5,6 +5,8 @@ import {patchLightingMaterial} from '../public/game/lighting.mjs';
 // A native shader unit test, independent of the browser and fake game renderer.
 // Compare real GPU filter output against exact planar depth maps, including a
 // blocker only two centimeters in front of the receiving wall/floor.
+// SHADOW_TYPE=BASIC checks the single-sample filter used by Performance quality.
+const filterType=process.env.SHADOW_TYPE==='BASIC'?'BASIC':'PCF_SOFT';
 const material=new T.MeshStandardMaterial();patchLightingMaterial(material);
 const shader={vertexShader:'',fragmentShader:'#include <shadowmap_pars_fragment>'};material.onBeforeCompile(shader);
 const pars=shader.fragmentShader,planeAware=pars.includes('vec3 receiverNormal');
@@ -20,7 +22,7 @@ precision highp sampler2D;
 #define varying in
 #define texture2D texture
 #define USE_SHADOWMAP
-#define SHADOWMAP_TYPE_PCF_SOFT
+#define SHADOWMAP_TYPE_${filterType}
 #define NUM_SPOT_LIGHT_COORDS 0
 #define NUM_SPOT_LIGHT_MAPS 0
 #define NUM_SPOT_LIGHT_SHADOWS 0
@@ -52,4 +54,4 @@ void main(){
   result=vec4(vec3(visibility),1.0);
 }
 `);
-console.log('Prepared native shadow-filter pixel regression from the actual game shader hook.');
+console.log(`Prepared native shadow-filter pixel regression from the actual game shader hook (${filterType==='BASIC'?'Performance single-sample':'High/Ultra soft'} moon/flashlight filter).`);

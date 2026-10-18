@@ -1,5 +1,5 @@
 import * as T from './three.module.js';
-import {LIGHT_BUDGET} from './lighting.mjs?v=75';
+import {LIGHT_BUDGET} from './lighting.mjs?v=120';
 
 // Lamps keep their authored color, range, brightness and flicker. One fixed
 // shader light budget serves all floors, including the distant mansion wings.
