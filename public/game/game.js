@@ -3,9 +3,9 @@ import {FERAL} from './feral.mjs?v=116';
 import {CURSE_RULES,createCurse,curseWaveConfig,curseReward,chooseCurseEnemyKind} from './curse.mjs?v=116';
 import {createCurseUI} from './curse-ui.mjs?v=116';
 import {ENRAGE,enrageNearby} from './enrage.mjs?v=27';
-import {createCrowd,enemyBody,PLAYER_RADIUS} from './crowd.mjs?v=30';
-import {createLeaderboard} from './leaderboard.mjs?v=122';
-import {createChangelog} from './changelog.mjs?v=122';
+import {createCrowd,enemyBody,PLAYER_RADIUS,SPREAD} from './crowd.mjs?v=123';
+import {createLeaderboard} from './leaderboard.mjs?v=123';
+import {createChangelog} from './changelog.mjs?v=123';
 import {configureMinimap} from './minimap-settings.mjs?v=79';
 import {COMBAT,createWeaponRecoil,staggerLimits,advanceStagger,registerStagger,createCombatHud} from './combat-feedback.mjs?v=84';
 import {ARMOR,armorRank} from './armor.mjs?v=94';
@@ -681,7 +681,22 @@ function enemyFloorHeight(x,z){
 }
 function corpseBlocked(x,z,r,y){return isBlocked(x,z,r,colliders,undefined,y-r,2*r);}
 function corpseFloor(x,z,y){const h=supportBelow(x,z,y+.2);return Math.abs(h)>.1?h+.008:enemyFloorHeight(x,z)+.008;}
-function updateEnemies(dt){for(let i=zombies.length-1;i>=0;i--){const e=zombies[i];
+// A blocked enemy shoulders the neighbour in its way a little to the side.
+// Only on flat floors, never mid-attack, and only into genuinely free space.
+function shoulderNeighbour(e,dx,dz,dt){
+  const p=e.walkPos;if(stairHeight(p.x,p.z)!==null||cellarStairHeight(p.x,p.z)!==null)return;
+  let blocker=null,best=Infinity;
+  for(const o of zombies){
+    if(o===e||o.dead||o.emergeLeft>0||Math.abs(o.walkPos.y-p.y)>.5)continue;
+    const ox=o.walkPos.x-p.x,oz=o.walkPos.z-p.z,d=Math.hypot(ox,oz);
+    if(d>e.radius+o.radius+.14||(ox*dx+oz*dz)/Math.max(d,1e-6)<.5||d>=best)continue;best=d;blocker=o;
+  }
+  if(!blocker||blocker.attackTime>=0)return;
+  const q=blocker.walkPos;if(stairHeight(q.x,q.z)!==null||cellarStairHeight(q.x,q.z)!==null)return;
+  const side=Math.sign((q.x-p.x)*(-dz)+(q.z-p.z)*dx)||e.routeSide||1,force=SPREAD.shove*dt*(e.brute?1.4:1)/(blocker.brute?3:1);
+  moveWithCollision(q,-dz*side*force,dx*side*force,blocker.radius,blocker);
+}
+function updateEnemies(dt){crowd.plan(player.y);for(let i=zombies.length-1;i>=0;i--){const e=zombies[i];
 if(e.dead){if(updateZombieDeath(e,dt,corpseBlocked,corpseFloor)){world.remove(e.group);disposeEnemy(e);zombies.splice(i,1);}continue;}
 if(e.emergeLeft>0){
   e.emergeLeft=Math.max(0,e.emergeLeft-dt);
@@ -701,12 +716,20 @@ if(e.pathTimer<=0){
   e.flankClear=false;
   if(e.clearPath&&dist>2.5){const flank=e.flank*Math.min(1,(dist-2.5)/4);e.flankClear=hasClearPath(p.x,p.z,player.x-(player.z-p.z)/dist*flank,player.z+(player.x-p.x)/dist*flank,p.y,player.y,e.brute?e.radius:.35,e.brute?e.bodyHeight:1.8);}
   e.waypoint=routes.direction(p.x,p.z,p.y,e.navigation);
+  // Keep a shared-out slot only if it is open floor with a clear walk to it.
+  e.slotScale=0;
+  if(e.clearPath&&e.engaged)for(const scale of [1,.5]){
+    const t=crowd.slotTarget(e,scale),r=e.brute?e.radius:.35;
+    if(!isBlocked(t.x,t.z,r,colliders,undefined,p.y,e.bodyHeight)&&hasClearPath(p.x,p.z,t.x,t.z,p.y,p.y,r,e.brute?e.bodyHeight:1.8)){e.slotScale=scale;break;}
+  }
   e.pathTimer=.22+(e.phase%1)*.10;
 }
 let tx=player.x,tz=player.z;
 if((dist>1.3||!sameFloor)&&(!sameFloor||!e.clearPath)){
   if(!e.waypoint||Math.hypot(e.waypoint.x-p.x,e.waypoint.z-p.z)<.18)e.waypoint=routes.direction(p.x,p.z,p.y,e.navigation);
   if(e.waypoint){tx=e.waypoint.x;tz=e.waypoint.z;}
+}else if(e.engaged&&e.slotScale>0){
+  const t=crowd.slotTarget(e,e.slotScale);tx=t.x;tz=t.z;
 }else if(dist>2.5&&e.flankClear){
   const flank=e.flank*Math.min(1,(dist-2.5)/4);
   const fx=tx-(player.z-p.z)/dist*flank,fz=tz+(player.x-p.x)/dist*flank;
@@ -714,7 +737,7 @@ if((dist>1.3||!sameFloor)&&(!sameFloor||!e.clearPath)){
 }
 let dx=tx-p.x,dz=tz-p.z,len=Math.hypot(dx,dz),heading=Math.atan2(player.x-p.x,player.z-p.z);
 if(len>.1&&(dist>1.03||!sameFloor)){
-  dx/=len;dz/=len;crowd.steer(e,dx,dz);dx=e.steerX;dz=e.steerZ;
+  dx/=len;dz/=len;crowd.steer(e,dx,dz,elapsed);dx=e.steerX;dz=e.steerZ;
   const pace=(e.staggerLeft>0?0:1)*(frenzyWave===wave&&wave?1.4:1)*(e.attackTime>=0?(e.dog?.65:.4):1)*(e.legHit>0?.55:1),step=e.speed*worldEvents.speedMultiplier(e)*dt*pace;
   moveWithCollision(p,dx*step,dz*step,e.radius,e);
   const moved=Math.hypot(p.x-oldX,p.z-oldZ);
@@ -725,6 +748,7 @@ if(len>.1&&(dist>1.03||!sameFloor)){
     const side=e.routeSide*(Math.floor(e.stuck/1.2)%2?-1:1),remaining=Math.max(0,step-moved);
     moveWithCollision(p,-dz*side*remaining,dx*side*remaining,e.radius,e);
   }
+  if(e.stuck>.12)shoulderNeighbour(e,dx,dz,dt);
   if(Math.hypot(p.x-oldX,p.z-oldZ)>.001)heading=Math.atan2(p.x-oldX,p.z-oldZ);
 }
 

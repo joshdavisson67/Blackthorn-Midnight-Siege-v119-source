@@ -27,6 +27,12 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Crowd spreading (version 123)
+
+The horde no longer files in nose-to-tail. Within twelve meters, enemies that can reach the player share out approach angles: one directly behind another fans off to its own side, and the group arrives as a ring around the player instead of a queue. Each enemy keeps its personal left/right flank. Slots that land in a wall or have no clear walk are narrowed or dropped. On longer routes, neighbors beside each other drift apart and a crowded enemy prefers its own side, so open rooms carry two or three abreast. A small personal sway, and a blocked enemy shouldering its neighbor a little sideways on flat ground, make the press look alive. Bodies still never overlap, the player still cannot push enemies, attacks are never interrupted by a shove, and stairs still genuinely jam.
+
+In the measured door scenario (16 walkers coming through the main door at a player in the hall), the share of enemies walking directly behind another fell from 69% to about 30%, the crowd now covers all 8 directions around the player instead of 4, and all 16 reach the fight within 20 seconds instead of 11. On the open lawn the figure fell from 21% to 10%, with the group about 25% wider. CPU cost per frame is unchanged in the stubbed harness. Real-browser frame rates remain unmeasured.
+
 ## Palladian exterior (version 122)
 
 The front now takes its cue from an English Palladian country house. Eight giant-order Ionic columns, set in pairs on stone pedestals, rise through both storeys around the main entrance and carry a full entablature with architrave, frieze, dentils and cornice. A shallow pediment above holds the family crest in a carved roundel, with statues on its apex and ends. The ground storey is channelled rustication and the upper storey smooth ashlar, both stopping short of every door, window and exit. Pilasters frame each upper bay of the wings. A balustraded parapet with urn-topped dies runs around the whole roofline, with statues on the four corners. Behind the pediment a raised attic tower with tall windows, quoins, a balustrade and five statues stands above the slate roof, visible from the courtyard. The old front dormers and two-column porch are gone.
