@@ -4,8 +4,8 @@ import {CURSE_RULES,createCurse,curseWaveConfig,curseReward,chooseCurseEnemyKind
 import {createCurseUI} from './curse-ui.mjs?v=116';
 import {ENRAGE,enrageNearby} from './enrage.mjs?v=27';
 import {createCrowd,enemyBody,PLAYER_RADIUS} from './crowd.mjs?v=30';
-import {createLeaderboard} from './leaderboard.mjs?v=121';
-import {createChangelog} from './changelog.mjs?v=121';
+import {createLeaderboard} from './leaderboard.mjs?v=122';
+import {createChangelog} from './changelog.mjs?v=122';
 import {configureMinimap} from './minimap-settings.mjs?v=79';
 import {COMBAT,createWeaponRecoil,staggerLimits,advanceStagger,registerStagger,createCombatHud} from './combat-feedback.mjs?v=84';
 import {ARMOR,armorRank} from './armor.mjs?v=94';
@@ -36,7 +36,7 @@ import {buildSecondFloor,drawUpperMap} from './second-floor.mjs?v=118';
 import {BELLA,BELLA_PAW,createBellaCompanion} from './bella.mjs?v=116';
 import {tagZombie,reactToHit,animateZombie,beginZombieDeath,updateZombieDeath} from './zombies.mjs?v=85';
 import {addEstateDetail} from './estate-detail.mjs?v=116';
-import {buildFacade,mansionRoofGeometry} from './facade.mjs?v=116';
+import {buildFacade,mansionRoofGeometry,PORTICO} from './facade.mjs?v=122';
 import {createReticleHud} from './reticles.mjs?v=116';
 import {createFurnishings} from './furnishings.mjs?v=59';
 import {createRugBuilder} from './rugs.mjs?v=59';
@@ -119,11 +119,11 @@ for(let z of [-12,12]){for(const side of [-1,1])box(side*(z===12?8.6:8.5),.2,z,z
 // Exterior ornament and gothic windows.
 // Crossbars meet the vertical mullion at their ends, with no competing faces.
 for(let x of [-10,-7,7,10]){box(x,3.4,12.32,1.5,3.1,.08,M.dark);box(x,3.4,12.38,1.28,2.9,.04,M.glass);box(x,3.4,12.41,.05,3,.05,M.gold);for(const side of [-1,1])box(x+side*.3375,3.4,12.41,.625,.05,.05,M.gold);box(x,1.9,12.36,1.9,.15,.35,M.stone);}
-for(let x of [-12,-5,5,12]){box(x,3.4,12.38,.55,6.8,.55,M.stone);box(x,6.7,12.38,.8,.3,.8,M.stone);}
+
 // Sloping roof and attic facade.
 const roofMat=M.roof.clone();roofMat.side=T.DoubleSide;const roofGeo=mansionRoofGeometry(roofMat);const mainRoof=mesh(roofGeo,roofMat,[0,0,0]);mainRoof.name='Blackthorn slate roof';box(-10,9,-5,1.3,6,1.5,M.brick);box(9,9,-8,1.3,6,1.5,M.brick);
 const crest=mesh(new T.CircleGeometry(.68,32),label('B\n1893','#d4b77a',512,{width:1.36,height:1.36,kind:'crest',maxLines:2}),[0,8.45,12.84],[1,1,1]);
-for(let x of [-3.5,3.5]){cylinder(x,2.25,13.7,.28,4.5,M.stone);cylinder(x,.2,13.7,.42,.4,M.stone);cylinder(x,4.4,13.7,.42,.3,M.stone);}box(0,4.7,13.2,8,.25,3,M.stone);box(0,.08,13,8,.15,3,M.stone);
+box(0,.08,13,8,.15,3,M.stone);
 for(const side of [-1,1]){const hinge=new T.Group();hinge.name='Fully open main entrance door';hinge.position.set(side*3.2,0,12.1);hinge.rotation.y=side*1.75;world.add(hinge);box(-side*.5,2,0,1,4,.18,M.wood,hinge);box(-side*.5,3,.116,.6,.8,.05,M.gold,hinge);}
 // Hall columns, balcony, staircase alcove and chandelier.
 for(let x of [-4.5,4.5])for(let z of [-8,7]){if(x<0&&z<0)continue;cylinder(x,6.55,z,.43,.3,M.stone);}
@@ -209,7 +209,9 @@ const estateDetail=addEstateDetail({scene,world,M,box,mesh,mistTex,fire,collider
 const expansion=buildMansionExpansion({scene,world,M,box,mesh,cylinder,sphere,painting,sofa,bookcase,label,station,colliders,furnishings,rugs});
 const rotundaBell=buildRotundaBell({world,solidMeshes,interactables,batchArticulated});
 const secondFloor=buildSecondFloor({scene,world,M,box,mesh,cylinder,sphere,label,colliders,solidMeshes,interactables,station,furnishings,rugs});
-const facade=buildFacade({world,M,secondFloor});
+const facade=buildFacade({world,M,secondFloor,colliders,solidMeshes});
+// The family crest now sits in the pediment's roundel.
+crest.position.set(0,PORTICO.entablature[1]+15*PORTICO.slope*.42,12.24+.925);crest.scale.set(1.45,1.45,1);if(!crest.parent)world.add(crest);
 // Upper exhibits use solid wall bays, with their fronts facing the room.
 // Keep the exterior windows, bedroom furniture and wing doorways clear.
 for(const [id,x,z,rotation] of [

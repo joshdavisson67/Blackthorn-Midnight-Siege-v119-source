@@ -27,6 +27,12 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Palladian exterior (version 122)
+
+The front now takes its cue from an English Palladian country house. Eight giant-order Ionic columns, set in pairs on stone pedestals, rise through both storeys around the main entrance and carry a full entablature with architrave, frieze, dentils and cornice. A shallow pediment above holds the family crest in a carved roundel, with statues on its apex and ends. The ground storey is channelled rustication and the upper storey smooth ashlar, both stopping short of every door, window and exit. Pilasters frame each upper bay of the wings. A balustraded parapet with urn-topped dies runs around the whole roofline, with statues on the four corners. Behind the pediment a raised attic tower with tall windows, quoins, a balustrade and five statues stands above the slate roof, visible from the courtyard. The old front dormers and two-column porch are gone.
+
+Only the eight column pedestals add collision. They stand clear of the main door and its open leaves, the ground-floor windows and the courtyard ammo crate, and every upper window keeps its sightlines. Balusters are one shadowless instanced draw. Facade checks cover the portico placement, pediment and crest visibility, the hidden slate gable, statue and tower heights, chimney clearance, clear doorway, landing and side-exit approaches, triangle budgets and collision count. Screenshots were taken in a software-rendered browser; real-GPU frame rates remain unmeasured.
+
 ## Storm cellar (version 16)
 
 At wave 10, the pair of storm doors on the north grounds opens automatically. A 24-tread flight descends 4.2 meters to an 18 × 20 meter underground armory beneath the observatory. The cellar has its own floor map, clear circulation, storage crates, structural ribs, pipes and cyan fixtures. Navigation connects all three floors; players, walkers and both dog types use the same stairs. Ground terrain is cut around the stair opening. Collision, shots, grenades, ragdolls and interactions respect the underground floor and ceiling.
