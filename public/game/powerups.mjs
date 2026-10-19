@@ -1,5 +1,5 @@
 import * as T from './three.module.js';
-import {createModelKit} from './station-models.mjs?v=118';
+import {createModelKit} from './station-models.mjs?v=125';
 export const POWERUPS={
   ammo:{name:'MAX AMMO',color:0x67efbb,hex:'#67efbb',duration:0},
   double:{name:'DOUBLE DAMAGE',color:0xffd47a,hex:'#ffd47a',duration:20},

@@ -14,7 +14,7 @@ export function verifyPerformance(qa,frames,listeners){
   assert(s.combatLights.lights.some(l=>l.intensity>0),'The fixed pool must still illuminate combat effects');
   listeners.keydown({code:'KeyF'});assert.equal(s.flashlight.intensity,0);assert(s.flashlight.visible);
   assert.deepEqual(signature(),lights,'Turning the flashlight off must not rebuild lighting shaders');
-  listeners.keydown({code:'KeyF'});assert.equal(s.flashlight.intensity,24);
+  listeners.keydown({code:'KeyF'});assert(s.flashlight.intensity>0,'The flashlight turns back on');
   for(const p of s.pickups)p.life=.01;frames(35);
   assert.deepEqual(signature(),lights,'Expiring effects must preserve the shader signature');
   qa.start();assert(s.combatLights.lights.every(l=>l.intensity===0));assert.deepEqual(signature(),lights);

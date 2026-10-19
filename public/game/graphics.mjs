@@ -11,6 +11,65 @@ function setup(t,name){t.name=name;t.wrapS=t.wrapT=T.MirroredRepeatWrapping;t.re
 if(results[0].status==='fulfilled'){maps.stone=setup(results[0].value,'stone');maps.brick=setup(results[0].value.clone(),'brick');}
 if(results[1].status==='fulfilled'){maps.floor=setup(results[1].value,'floor');maps.wood=setup(results[1].value.clone(),'wood');}
 }
+// Surface finish maps (v125), derived once from a loaded photo texture so the
+// finish follows the actual grain and joints instead of one uniform gloss.
+// `shade(dark,wear)` receives the normalised darkness of each texel (0 light,
+// 1 dark) and a soft board-scale wear field, and returns [r,g] in 0..1.
+// Returns null where no 2D canvas or image is available (tests, failed loads).
+export function finishMapFrom(source,shade,size=512){
+  const image=source?.image;
+  if(!image||typeof document==='undefined')return null;
+  const canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+  const ctx=canvas.getContext?.('2d',{willReadFrequently:true});if(!ctx||typeof ctx.getImageData!=='function')return null;
+  try{ctx.drawImage(image,0,0,size,size);}catch{return null;}
+  let data;try{data=ctx.getImageData(0,0,size,size);}catch{return null;}
+  const px=data?.data;if(!px||px.length<size*size*4)return null;const lum=new Float32Array(size*size);
+  for(let i=0;i<lum.length;i++)lum[i]=(.2126*px[i*4]+.7152*px[i*4+1]+.0722*px[i*4+2])/255;
+  // Robust range: ignore the darkest and lightest 2% so a few texels cannot flatten the map.
+  const sorted=Float32Array.from(lum).sort(),lo=sorted[Math.floor(lum.length*.02)],hi=sorted[Math.floor(lum.length*.98)],span=Math.max(1e-3,hi-lo);
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+    const i=y*size+x,dark=Math.min(1,Math.max(0,(hi-lum[i])/span));
+    // Smooth, tile-safe wear: whole sine periods across the texture.
+    const u=x/size*Math.PI*2,v=y/size*Math.PI*2,wear=.5+.25*Math.sin(u*2+Math.sin(v*3)*.8)+.25*Math.sin(v*5+u);
+    const [r,g]=shade(dark,wear);px[i*4]=Math.round(r*255);px[i*4+1]=Math.round(g*255);px[i*4+2]=0;px[i*4+3]=255;
+  }
+  ctx.putImageData(data,0,0);
+  const t=new T.CanvasTexture(canvas);t.name=source.name+'-finish';t.colorSpace=T.NoColorSpace;
+  t.wrapS=source.wrapS;t.wrapT=source.wrapT;t.repeat.copy(source.repeat);t.userData.tileMeters=source.userData.tileMeters;
+  return stabilizeTexture(t);
+}
+// Flashlight beam (v125). A real torch has a bright core, a softer corona
+// with a faint reflector ring, and a dim spill that fades to nothing, rather
+// than a uniformly lit disc. Projected as the spot light's cookie; texture
+// radius 0.5 is the cone edge. Returns null without a 2D canvas (tests).
+export const BEAM=Object.freeze({core:.16,corona:.42,spill:.10,ring:.46,fadeStart:.80});
+export function beamProfile(r){
+  if(r>=1)return 0;
+  const edge=r<=BEAM.fadeStart?1:1-((r-BEAM.fadeStart)/(1-BEAM.fadeStart))**2*(3-2*(r-BEAM.fadeStart)/(1-BEAM.fadeStart));
+  const glow=BEAM.spill+.55*Math.exp(-((r/BEAM.corona)**2))+.35*Math.exp(-((r/BEAM.core)**2))+.05*Math.exp(-(((r-BEAM.ring)/.04)**2));
+  return Math.min(1,glow)*edge;
+}
+export function flashlightBeamTexture(size=256){
+  if(typeof document==='undefined')return null;
+  const canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+  const ctx=canvas.getContext?.('2d');if(!ctx||typeof ctx.createImageData!=='function')return null;
+  const img=ctx.createImageData(size,size),px=img?.data;if(!px||px.length<size*size*4)return null;
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+    const dx=(x+.5)/size-.5,dy=(y+.5)/size-.5,a=Math.atan2(dy,dx);
+    // A slightly irregular lens: three per-cent ripple around the rim.
+    const r=Math.hypot(dx,dy)/.5*(1+.015*Math.sin(a*5)+.01*Math.sin(a*11+1.3)),v=Math.round(beamProfile(r)*255),i=(y*size+x)*4;
+    px[i]=px[i+1]=px[i+2]=v;px[i+3]=255;
+  }
+  ctx.putImageData(img,0,0);
+  const t=new T.CanvasTexture(canvas);t.name='flashlight-beam';t.colorSpace=T.NoColorSpace;t.wrapS=t.wrapT=T.ClampToEdgeWrapping;
+  return stabilizeTexture(t);
+}
+
+// Satin oak: grain and gaps are rougher than the board faces, worn patches dull.
+export const OAK_FINISH=(dark,wear)=>{const r=.66+.22*dark+.08*wear;return [r,r];};
+// Rain on limestone: water stands in joints and pits; faces stay mostly dry.
+export const WET_STONE_FINISH=(dark,wear)=>{const wet=.12+.88*Math.pow(dark,1.6)*(.75+.25*wear);return [wet,1-.45*wet];};
+
 export function tiledBox(base,material,w,h,d){const map=material.map,tile=map?.userData.tileMeters;if(!tile)return base;const geo=base.clone(),uv=geo.attributes.uv;const faces=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];for(let face=0;face<6;face++)for(let k=0;k<4;k++){const i=face*4+k;uv.setXY(i,uv.getX(i)*faces[face][0]/tile/map.repeat.x,uv.getY(i)*faces[face][1]/tile/map.repeat.y);}return geo;}
 // A small, soft ambient cube is filtered by Three once. Local shadowed lamps
 // provide specular highlights; painted windows no longer reflect in every room.

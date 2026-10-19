@@ -4,8 +4,8 @@ import {CURSE_RULES,createCurse,curseWaveConfig,curseReward,chooseCurseEnemyKind
 import {createCurseUI} from './curse-ui.mjs?v=116';
 import {ENRAGE,enrageNearby} from './enrage.mjs?v=27';
 import {createCrowd,enemyBody,PLAYER_RADIUS,SPREAD} from './crowd.mjs?v=123';
-import {createLeaderboard} from './leaderboard.mjs?v=124';
-import {createChangelog} from './changelog.mjs?v=124';
+import {createLeaderboard} from './leaderboard.mjs?v=125';
+import {createChangelog} from './changelog.mjs?v=125';
 import {configureMinimap} from './minimap-settings.mjs?v=79';
 import {COMBAT,createWeaponRecoil,staggerLimits,advanceStagger,registerStagger,createCombatHud} from './combat-feedback.mjs?v=84';
 import {ARMOR,armorRank} from './armor.mjs?v=94';
@@ -13,38 +13,38 @@ import {createGrassMaterial,alignGrassPatch,ESTATE_PATHS,ESTATE_PAVING} from './
 import {MAUSOLEUM,inMausoleum,inGraveyard} from './graveyard-layout.mjs?v=28';
 import {buildGraveyard} from './graveyard.mjs?v=116';
 import {CELLAR,isCellarOpen,setCellarOpen,cellarStairHeight} from './cellar-layout.mjs?v=28';
-import {buildCellar,drawCellarMap} from './cellar.mjs?v=118';
+import {buildCellar,drawCellarMap} from './cellar.mjs?v=125';
 import {SHED,SHED_FRONT,inShed} from './shed-layout.mjs?v=76';
-import {buildShed} from './shed.mjs?v=117';
+import {buildShed} from './shed.mjs?v=125';
 import * as T from './three.module.js';
 import {createRenderScale} from './render-scale.mjs?v=120';
 import {createTouchControls,touchPreferred,TOUCH} from './touch-controls.mjs?v=121';
 import {columnSurfaceGeometry} from './column-surfaces.mjs?v=93';
-import {createStationBuilder} from './station-models.mjs?v=118';
-import {createWeaponModel,updatePistolSlide} from './weapon-models.mjs?v=117';
+import {createStationBuilder} from './station-models.mjs?v=125';
+import {createWeaponModel,updatePistolSlide} from './weapon-models.mjs?v=125';
 import {weaponSurfaces} from './weapon-surfaces.mjs?v=87';
 import {GRENADE_THROW,createGrenadeAssets,createGrenadeThrow} from './grenade-throw.mjs?v=44';
-import {POWERUPS,choosePowerup,powerupIcon,createPowerupAssets} from './powerups.mjs?v=118';
+import {POWERUPS,choosePowerup,powerupIcon,createPowerupAssets} from './powerups.mjs?v=125';
 import {createEnemyAssets} from './enemy-assets.mjs?v=124';
-import {createCombatLights} from './combat-lights.mjs?v=118';
+import {createCombatLights} from './combat-lights.mjs?v=125';
 import {createLighting,prepareLightingMaterials,patchLightingMaterial} from './lighting.mjs?v=120';
 import {createEnvironmentLights} from './environment-lights.mjs?v=75';
 import {createEffectPool} from './effect-pool.mjs?v=47';
 import {animateZombieDog,DOG_SPEED_MULTIPLIER,RARE_DOG_SPEED_MULTIPLIER} from './zombie-dog.mjs?v=124';
 import {UPPER_Y,UPPER_CEILING,UPPER_SPAWNS,hasUpperFloor,STAIR,EXTERIOR_STAIRS,supportBelow,stairHeight,stairAt,moveActor,updateActorHeight,buildVerticalNavigation,upperLocation} from './vertical.mjs?v=116';
-import {buildSecondFloor,drawUpperMap} from './second-floor.mjs?v=118';
+import {buildSecondFloor,drawUpperMap} from './second-floor.mjs?v=125';
 import {BELLA,BELLA_PAW,createBellaCompanion} from './bella.mjs?v=116';
 import {tagZombie,reactToHit,animateZombie,beginZombieDeath,updateZombieDeath,noteLegDamage,CRAWL} from './zombies.mjs?v=124';
 import {addEstateDetail} from './estate-detail.mjs?v=116';
-import {buildFacade,mansionRoofGeometry,PORTICO} from './facade.mjs?v=122';
+import {buildFacade,mansionRoofGeometry,PORTICO} from './facade.mjs?v=125';
 import {createReticleHud} from './reticles.mjs?v=116';
 import {createFurnishings} from './furnishings.mjs?v=59';
 import {createRugBuilder} from './rugs.mjs?v=59';
 import {createSignage} from './signage.mjs?v=94';
 import {FORGE,forgeBonuses,configureForgeStation} from './soul-forge.mjs?v=118';
-import {loadEstateTextures,tiledBox,ambientEnvironment,makeFilmPass,renderCleanFrame,freezeStaticTransforms} from './graphics.mjs?v=116';
+import {loadEstateTextures,tiledBox,ambientEnvironment,makeFilmPass,renderCleanFrame,freezeStaticTransforms,finishMapFrom,OAK_FINISH,WET_STONE_FINISH,flashlightBeamTexture} from './graphics.mjs?v=125';
 import {ESTATE_SPAWNS,roomAt,estateLocation} from './estate-layout.mjs?v=28';
-import {buildMansionExpansion,drawEstateMap} from './mansion-expansion.mjs?v=118';
+import {buildMansionExpansion,drawEstateMap} from './mansion-expansion.mjs?v=125';
 import {buildRotundaBell} from './rotunda-bell.mjs?v=88';
 import {UPPER_SLAB_BOTTOM} from './upper-shell.mjs?v=116';
 import {EVENT_RULES,WORLD_EVENTS,createWorldEvents} from './world-events.mjs?v=97';
@@ -79,7 +79,14 @@ await loadEstateTextures(maps);
 function mat(color,map=null,roughness=.85,metalness=0){return new T.MeshStandardMaterial({color,map:map?maps[map]:null,roughness,metalness,bumpMap:['brick','stone','wood','floor','plaster'].includes(map)?maps[map]:null,bumpScale:map==='brick'?.009:map==='plaster'?.003:.004});}
 const M={wall:mat(0x969d87,'plaster'),wood:mat(0x807569,'wood'),floor:mat(0xaaa08c,'floor'),stone:mat(0x9ca5a0,'stone'),brick:mat(0x8d9994,'brick'),roof:mat(0x616f72,'roof'),dark:mat(0x151c1d,'metal',.5,.65),gold:mat(0x93724c,null,.35,.7),leather:mat(0x29342b,'cloth'),red:mat(0x62352e,'cloth'),skin:mat(0xa2ab88,'skin'),shirt:mat(0x7a7663,'cloth'),pants:mat(0x4c554e,'cloth'),white:mat(0xc4c2a6),glass:new T.MeshStandardMaterial({color:0x4e7f96,metalness:.05,roughness:.38,emissive:0x163949,emissiveIntensity:.08}),blood:mat(0x402018,null,.6),trim:mat(0x6f7462,'stone')};
 M.wood.color.set(0xccb49b);M.wood.roughness=.78;M.stone.color.set(0xc0c7c4);M.stone.roughness=.8;M.stone.bumpScale=.009;M.brick.color.set(0xc4c1b5);M.brick.bumpScale=.009;M.dark.color.set(0x353f44);M.dark.roughness=.64;M.gold.roughness=.48;
-M.wetStone=new T.MeshPhysicalMaterial({color:0xb0b9b5,map:maps.stone,bumpMap:maps.stone,bumpScale:.007,roughness:.64,clearcoat:.25,clearcoatRoughness:.4});M.floor=new T.MeshPhysicalMaterial({color:0xf4ead7,map:maps.floor,bumpMap:maps.floor,bumpScale:.003,roughness:.7,clearcoat:.18,clearcoatRoughness:.45});
+// Natural floors (v125). Interior oak is a satin finish with no lacquer coat:
+// grain and board gaps break highlights up instead of smearing lamps into
+// streaks, and the flat ambient sheen is subdued. Outdoor stone stays wet,
+// with water gathering in joints and pits rather than one plastic coat.
+M.wetStone=new T.MeshPhysicalMaterial({color:0xb0b9b5,map:maps.stone,bumpMap:maps.stone,bumpScale:.007,roughness:.74,clearcoat:.22,clearcoatRoughness:.42});
+M.floor=new T.MeshStandardMaterial({color:0xf4ead7,map:maps.floor,bumpMap:maps.floor,bumpScale:.0018,roughness:.8,envMapIntensity:.55});
+{const oak=finishMapFrom(maps.floor,OAK_FINISH);if(oak){M.floor.roughnessMap=oak;M.floor.roughness=1;}
+ const wet=finishMapFrom(maps.stone,WET_STONE_FINISH);if(wet){M.wetStone.clearcoatMap=wet;M.wetStone.clearcoatRoughnessMap=wet;M.wetStone.clearcoat=.55;M.wetStone.clearcoatRoughness=.52;}}
 const furnishings=createFurnishings({world,M,colliders}),rugs=createRugBuilder({world});
 scene.environment=ambientEnvironment();scene.environmentIntensity=.48;
 M.wetStone.name='wet-stone';
@@ -189,7 +196,9 @@ const scopedGuns=Object.entries(gunGroups).filter(([,g])=>g.userData.optic?.mask
 const grenadeAssets=createGrenadeAssets(batchArticulated),grenadeThrow=createGrenadeThrow(grenadeAssets,batchArticulated);camera.add(grenadeThrow.root);
 const flashMat=new T.MeshBasicMaterial({color:0xffd37a,transparent:true,opacity:1,depthWrite:false});const flash=mesh(new T.ConeGeometry(.1,.32,8),flashMat,[0,0,-.9],null,gunRoot,false);flash.rotation.x=-Math.PI/2;flash.renderOrder=3;flash.material.depthTest=true;flash.visible=false;const muzzleLight=new T.PointLight(0xffc278,0,6);gunRoot.add(muzzleLight);muzzleLight.position.set(0,0,-.7);
 gunRoot.traverse(o=>o.layers.set(1));muzzleLight.layers.enable(1);const viewFill=new T.HemisphereLight(0xcbd9df,0x4d5544,2.2);viewFill.layers.set(1);scene.add(viewFill);const viewKey=new T.DirectionalLight(0xe6d0af,2.3);viewKey.layers.set(1);viewKey.position.set(-1,3,2);viewKey.target=gunRoot;camera.add(viewKey);
-const flashlight=new T.SpotLight(0xe2eddd,24,28,.4,.65,1.1);flashlight.position.set(.18,-.1,0);camera.add(flashlight);camera.add(flashlight.target);flashlight.target.position.set(0,0,-15);flashlight.visible=true;let flashlightOn=true;
+// A shaped torch beam: wider cone, soft rim, and a core that no longer clips the floor to white.
+const FLASHLIGHT_INTENSITY=22;
+const flashlight=new T.SpotLight(0xe2eddd,FLASHLIGHT_INTENSITY,28,.5,.35,1.1);flashlight.map=flashlightBeamTexture();flashlight.position.set(.18,-.1,0);camera.add(flashlight);camera.add(flashlight.target);flashlight.target.position.set(0,0,-15);flashlight.visible=true;let flashlightOn=true;
 // Clear each frame and resolve with spatial antialiasing; preserve the 15% brightness boost.
 const film=makeFilmPass(innerWidth,innerHeight);const rt=film.target,postMat=film.material;const postScene=new T.Scene();const postCamera=new T.OrthographicCamera(-1,1,1,-1,0,1);postScene.add(new T.Mesh(new T.PlaneGeometry(2,2),postMat));
 // The night sky uses layered clouds instead of a flat backdrop.
@@ -634,7 +643,7 @@ $('closeGuide').onclick=closeFieldGuide;$('guideDone').onclick=closeFieldGuide;
 $('sound').onchange=()=>{if(ambience)ambience.gain.value=soundOn()?.018:0;};
 configureMinimap({radar:$('radar'),navigation:$('hudNavigation'),vitals:$('hudVitals'),toggle:$('minimapToggle')});
 const WEAPON_CYCLE=['glock','shotgun','smg','lmg','bushmaster','rifle'];
-function toggleFlashlight(){flashlightOn=!flashlightOn;flashlight.intensity=flashlightOn?24:0;}
+function toggleFlashlight(){flashlightOn=!flashlightOn;flashlight.intensity=flashlightOn?FLASHLIGHT_INTENSITY:0;}
 function cycleWeapon(){const owned=WEAPON_CYCLE.filter(k=>inventory[k]?.owned);if(owned.length<2)return;selectWeapon(owned[(owned.indexOf(weapon)+1)%owned.length]);}
 function touchLook(dx,dy){if(mode!=='playing')return;const sens=Number($('sensitivity').value)*TOUCH.lookSpeed*(aiming?.62/(weapons[weapon].zoom||1):1);lookYaw-=dx*sens;lookPitch=clamp(lookPitch-dy*sens,-1.3,1.3);}
 touchControls=createTouchControls({document,toggle:$('touchToggle'),preferred:touchPreferred(window),actions:{

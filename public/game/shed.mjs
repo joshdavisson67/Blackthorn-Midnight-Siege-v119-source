@@ -1,6 +1,6 @@
 import * as T from './three.module.js';
 import {SHED,SHED_FRONT} from './shed-layout.mjs?v=76';
-import {createWeaponModel} from './weapon-models.mjs?v=117';
+import {createWeaponModel} from './weapon-models.mjs?v=125';
 
 export function buildShed({world,M,box,mesh,cylinder,label,colliders,solidMeshes,interactables,batchArticulated}){
   const {x,z,w,d,height,wall,doorWidth,doorHeight}=SHED,front=SHED_FRONT,back=z-d/2;

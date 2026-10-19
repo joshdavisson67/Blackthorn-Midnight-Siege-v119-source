@@ -1,5 +1,5 @@
 import * as T from './three.module.js';
-import {makeOptic} from './graphics.mjs?v=116';
+import {makeOptic} from './graphics.mjs?v=125';
 import {GLOCK_GRIP,glockSlideGeometry,glockStippleGeometry,glockGripPoint,glockRearPlateGeometry} from './glock-model-parts.mjs?v=117';
 import {weaponSurfaces,weaponSurfaceGeometry} from './weapon-surfaces.mjs?v=87';
 
