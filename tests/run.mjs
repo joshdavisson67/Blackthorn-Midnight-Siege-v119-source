@@ -258,3 +258,6 @@ verifyCrowdSpread(qa,frames);
 
 const {verifyZombieMotion}=await import('./zombie-motion.mjs');
 verifyZombieMotion(qa,frames);
+
+const {verifyFloorLighting}=await import('./floor-lighting.mjs');
+verifyFloorLighting(qa);

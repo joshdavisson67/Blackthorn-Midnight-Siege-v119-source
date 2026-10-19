@@ -22,10 +22,11 @@ export function verifyCrowdSpread(qa,frames){
   }
   // Scenario: sixteen walkers come through the main door at a player in the hall.
   qa.start();qa.holdSpawns();for(const e of qa.get().zombies)e.dead=true;frames(400);
-  qa.setPlayer(0,3);const horde=[];
+  // Seed the shared generator so every rolled trait (stride, attack timing) repeats exactly.
+  qa.setSeed(4242);qa.setPlayer(0,3);const horde=[];
   for(let i=0;i<16;i++){const e=qa.makeZombie((i%4-1.5)*.95,24+Math.floor(i/4)*.95);e.speed=2.1+.15*((i*7)%5)/4;
     // Fixed personal traits keep the scenario independent of earlier tests.
-    e.phase=i/16+.02;e.routeSide=i%2?1:-1;e.flank=e.routeSide*(.3+.12*(i%5));e.pathTimer=0;horde.push(e);}
+    e.phase=i/16+.02;e.routeSide=i%2?1:-1;e.flank=e.routeSide*(.3+.12*(i%5));e.pathTimer=0;e.stride=1;e.attack=.6;horde.push(e);}
   let conga=0,samples=0,sectors=0;const arrived=new Set();
   for(let f=0;f<20*60;f++){
     qa.setHealth(1e9);frames(1);const p=qa.get().player;

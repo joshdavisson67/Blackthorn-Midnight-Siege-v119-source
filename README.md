@@ -27,6 +27,12 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Natural floor lighting (version 125)
+
+The flashlight used to paint a flat, overexposed disc with a hard rim on every floor: at arm's length it delivered roughly six times the lamps' light, so almost the whole pool clipped to white and the beam's falloff only showed as an abrupt edge. It now projects a torch-shaped beam: a bright core, a softer corona with a faint reflector ring, and a dim spill that fades smoothly to nothing, with a slightly irregular lens rim. The cone is a little wider and the peak a little lower, so pools on wood and stone show a gradient and their grain instead of a white plate, while zombies at 7–14 meters stay about as visible as before.
+
+Interior oak no longer has a lacquer clearcoat. It is a satin finish whose roughness follows the actual grain and board gaps, with soft worn patches, so lamp highlights break up across boards instead of sliding along them, and the flat ambient sheen on floors is subdued. Outdoor paving, curbs and graves stay rain-wet, but water now gathers in joints and pits while stone faces stay mostly matte. All three patterns are generated at load time from the existing oak and limestone images and a small beam profile, so no new image files are added. The real-shader shadow tests pass for both shadow modes.
+
 ## Gait personalities and crawlers (version 124)
 
 The walk cycle was already procedural: legs, calves and feet swing out of phase, arms counter-swing, hips and spine sway, the body bobs and leans forward, flinches recover per body part, and deaths are physical ragdolls driven by shot direction, hit point and weapon force. Version 124 builds on that.
