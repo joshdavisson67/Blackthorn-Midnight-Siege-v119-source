@@ -27,6 +27,16 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Gait personalities and crawlers (version 124)
+
+The walk cycle was already procedural: legs, calves and feet swing out of phase, arms counter-swing, hips and spine sway, the body bobs and leans forward, flinches recover per body part, and deaths are physical ragdolls driven by shot direction, hit point and weapon force. Version 124 builds on that.
+
+Every walker and feral now rolls its own gait personality at spawn: which leg drags (either one, with a shorter stride and a toe-down scuff that barely lifts the foot), how strongly it sways, how far it hunches, how it carries its arms (reaching forward, dangling, one of each, or clutched), how much it bobs, and how far its arms and hips run behind its legs, so limbs no longer move in lockstep. Twenty zombies roll twenty different gaits from the same shared models, with no new assets.
+
+Enough damage to the legs (40% of a walker's or feral's health) now drops it to a crawl. The fall blends continuously from its current stride over about half a second, during which it cannot attack. Crawlers lie low with their legs trailing, haul themselves forward on alternating arms at 42% speed with their head raised, use a low collision body, still bite if they reach the player, and die into the same physical ragdoll. Brutes and dogs keep their feet. The field guide describes crawlers.
+
+Tests cover gait variety across twenty spawns, either leg dragging, measured arm lag, arm carriage and hunch, the crawl threshold and its exclusions, a continuous drop with no mid-fall attacks, the crawl pose, reduced crawl speed in play, crawler bites and crawler ragdoll deaths.
+
 ## Crowd spreading (version 123)
 
 The horde no longer files in nose-to-tail. Within twelve meters, enemies that can reach the player share out approach angles: one directly behind another fans off to its own side, and the group arrives as a ring around the player instead of a queue. Each enemy keeps its personal left/right flank. Slots that land in a wall or have no clear walk are narrowed or dropped. On longer routes, neighbors beside each other drift apart and a crowded enemy prefers its own side, so open rooms carry two or three abreast. A small personal sway, and a blocked enemy shouldering its neighbor a little sideways on flat ground, make the press look alive. Bodies still never overlap, the player still cannot push enemies, attacks are never interrupted by a shove, and stairs still genuinely jam.

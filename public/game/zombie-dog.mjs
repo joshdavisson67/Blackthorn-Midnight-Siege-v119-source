@@ -1,5 +1,5 @@
 import * as T from './three.module.js';
-import {applyHitReaction} from './zombies.mjs?v=85';
+import {applyHitReaction} from './zombies.mjs?v=124';
 import {makeRedEyeMaterial,makeEyeGeometry} from './enemy-faces.mjs?v=63';
 import {ENEMY_SURFACE,markEnemySurface} from './enemy-surfaces.mjs?v=63';
 const clamp=T.MathUtils.clamp;
