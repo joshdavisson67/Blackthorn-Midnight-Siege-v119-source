@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import * as T from '../public/game/three.module.js';
 import {columnSurfaceGeometry} from '../public/game/column-surfaces.mjs';
 import {MAUSOLEUM} from '../public/game/graveyard-layout.mjs';
+import {PORTICO} from '../public/game/facade.mjs';
 
 const near=(a,b,label,tolerance=.00002)=>assert(Math.abs(a-b)<tolerance,`${label}: ${a} vs ${b}`);
 export function verifyColumnSurfaces(qa){
@@ -47,8 +48,10 @@ export function verifyColumnSurfaces(qa){
     ray.set(new T.Vector3(x,y,z+.85),new T.Vector3(0,0,-1));
     const hit=ray.intersectObjects(opaque,false)[0];assert(hit,'Column must retain visible geometry');return hit;
   }
-  const locations=[[-3.5,13.7],[3.5,13.7],[-4.5,7],[4.5,-8],[4.5,7],[-37,-7],[-37,7],[-19,-7],[-19,7],[-12,12.38],[-5,12.38],[5,12.38],[12,12.38],[54,2.5],[54,9.5]];
+  const portico=PORTICO.columns.map(x=>[x,PORTICO.axisZ]);
+  const locations=[[-4.5,7],[4.5,-8],[4.5,7],[-37,-7],[-37,7],[-19,-7],[-19,7],[54,2.5],[54,9.5]];
   for(let i=0;i<8;i++){const a=(i+.5)*Math.PI/4;locations.push([Math.cos(a)*9,-24+Math.sin(a)*8]);}
+  const rotundaStart=locations.length;
   for(const side of [-1,1])locations.push([MAUSOLEUM.x+side*2.7,MAUSOLEUM.frontZ+.43]);
   let stone;
   for(const [x,z] of locations){
@@ -57,7 +60,8 @@ export function verifyColumnSurfaces(qa){
     assert.equal(b.object.material,stone);assert.equal(mat.map.name,'stone');
     near(Math.abs(b.uv.y-a.uv.y)*mat.map.repeat.y,1/mat.map.userData.tileMeters,`Finished shaft at ${x},${z} retains metric UVs after clipping and batching`);
   }
-  for(const [x,z] of locations.slice(0,9).concat(locations.slice(15))){
+  locations.push(...portico);
+  for(const [x,z] of locations.slice(0,7).concat(locations.slice(rotundaStart))){
     // Carved hall bases are part of the Lathe rather than separate cylinders.
     const a=front(x,.18,z);assert.equal(a.object.material,stone,'Column bases use matching stone');
   }
