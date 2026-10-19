@@ -4,8 +4,8 @@ import {CURSE_RULES,createCurse,curseWaveConfig,curseReward,chooseCurseEnemyKind
 import {createCurseUI} from './curse-ui.mjs?v=116';
 import {ENRAGE,enrageNearby} from './enrage.mjs?v=27';
 import {createCrowd,enemyBody,PLAYER_RADIUS,SPREAD} from './crowd.mjs?v=123';
-import {createLeaderboard} from './leaderboard.mjs?v=123';
-import {createChangelog} from './changelog.mjs?v=123';
+import {createLeaderboard} from './leaderboard.mjs?v=124';
+import {createChangelog} from './changelog.mjs?v=124';
 import {configureMinimap} from './minimap-settings.mjs?v=79';
 import {COMBAT,createWeaponRecoil,staggerLimits,advanceStagger,registerStagger,createCombatHud} from './combat-feedback.mjs?v=84';
 import {ARMOR,armorRank} from './armor.mjs?v=94';
@@ -25,16 +25,16 @@ import {createWeaponModel,updatePistolSlide} from './weapon-models.mjs?v=117';
 import {weaponSurfaces} from './weapon-surfaces.mjs?v=87';
 import {GRENADE_THROW,createGrenadeAssets,createGrenadeThrow} from './grenade-throw.mjs?v=44';
 import {POWERUPS,choosePowerup,powerupIcon,createPowerupAssets} from './powerups.mjs?v=118';
-import {createEnemyAssets} from './enemy-assets.mjs?v=85';
+import {createEnemyAssets} from './enemy-assets.mjs?v=124';
 import {createCombatLights} from './combat-lights.mjs?v=118';
 import {createLighting,prepareLightingMaterials,patchLightingMaterial} from './lighting.mjs?v=120';
 import {createEnvironmentLights} from './environment-lights.mjs?v=75';
 import {createEffectPool} from './effect-pool.mjs?v=47';
-import {animateZombieDog,DOG_SPEED_MULTIPLIER,RARE_DOG_SPEED_MULTIPLIER} from './zombie-dog.mjs?v=85';
+import {animateZombieDog,DOG_SPEED_MULTIPLIER,RARE_DOG_SPEED_MULTIPLIER} from './zombie-dog.mjs?v=124';
 import {UPPER_Y,UPPER_CEILING,UPPER_SPAWNS,hasUpperFloor,STAIR,EXTERIOR_STAIRS,supportBelow,stairHeight,stairAt,moveActor,updateActorHeight,buildVerticalNavigation,upperLocation} from './vertical.mjs?v=116';
 import {buildSecondFloor,drawUpperMap} from './second-floor.mjs?v=118';
 import {BELLA,BELLA_PAW,createBellaCompanion} from './bella.mjs?v=116';
-import {tagZombie,reactToHit,animateZombie,beginZombieDeath,updateZombieDeath} from './zombies.mjs?v=85';
+import {tagZombie,reactToHit,animateZombie,beginZombieDeath,updateZombieDeath,noteLegDamage,CRAWL} from './zombies.mjs?v=124';
 import {addEstateDetail} from './estate-detail.mjs?v=116';
 import {buildFacade,mansionRoofGeometry,PORTICO} from './facade.mjs?v=122';
 import {createReticleHud} from './reticles.mjs?v=116';
@@ -361,7 +361,7 @@ function killZombie(e,headshot=false,impact={}){if(e.dead)return;e.dead=true;e.d
 if(enraged&&e.walkPos.distanceToSquared(player)<324)notify(`BLOOD RAGE · ${enraged} NEARBY ${enraged===1?'ENEMY':'ENEMIES'} ENRAGED`);
 const corpses=zombies.filter(z=>z.dead&&z.ragdoll.life>z.death);if(corpses.length>14){const oldest=corpses.reduce((a,b)=>a.death>b.death?a:b);oldest.ragdoll.life=oldest.death;}
 }
-function damageEnemy(e,amount,headshot=false,impact={}){if(e.dead)return;e.hp-=amount;addPoints(10);hitTime=headshot?.22:.14;const reaction=headshot&&impact.part!=='head'?{...impact,part:'head'}:impact;if(combatHud.hit(headshot,impact.shotId)){tone(1250,.055,.035,'triangle',1850);tone(1850,.07,.022,'sine',1200);}reactToHit(e,reaction);registerStagger(e,reaction);if(e.hp<=0)killZombie(e,headshot,reaction);}
+function damageEnemy(e,amount,headshot=false,impact={}){if(e.dead)return;e.hp-=amount;if(impact.part==='leg'&&!headshot&&noteLegDamage(e,amount)){e.bodyHeight=CRAWL.height;tone(55,.18,.05,'sine',38);noise(.12,.05,260);}addPoints(10);hitTime=headshot?.22:.14;const reaction=headshot&&impact.part!=='head'?{...impact,part:'head'}:impact;if(combatHud.hit(headshot,impact.shotId)){tone(1250,.055,.035,'triangle',1850);tone(1850,.07,.022,'sine',1200);}reactToHit(e,reaction);registerStagger(e,reaction);if(e.hp<=0)killZombie(e,headshot,reaction);}
 function bloodBurst(pos,count){for(let i=0;i<count;i++){const sx=rand(.01,.025),sy=rand(.01,.03),sz=rand(.01,.025),vx=rand(-1.4,1.4),vy=rand(.5,2),vz=rand(-1.4,1.4),effect=bloodPool.acquire();if(!effect)continue;effect.mesh.position.copy(pos);effect.mesh.scale.set(sx,sy,sz);effect.vel.set(vx,vy,vz);effect.life=effect.max=.6;effects.push(effect);}}
 const raycaster=new T.Raycaster();const dir=new T.Vector3();let shotId=0;
 function shoot(){if(mode!=='playing'||grenadeThrow.active||reloadLeft>0||shotTimer>0)return;const inv=inventory[weapon],w=weapons[weapon];if(inv.ammo<=0){shotTimer=.25;tone(120,.045,.03,'square');reload();return;}inv.ammo--;shotTimer=w.rate;const id=++shotId;if(weapon==='glock')gunGroups.glock.userData.slideTime=.12;flashTime=.045;noise(weapon==='shotgun'?.22:.12,.18,weapon==='shotgun'?1200:2500);tone(80,.13,.1,'triangle',35);const active=zombies.filter(e=>!e.dead).map(e=>e.group);const hitObjects=[...solidMeshes,...active];
@@ -738,7 +738,7 @@ if((dist>1.3||!sameFloor)&&(!sameFloor||!e.clearPath)){
 let dx=tx-p.x,dz=tz-p.z,len=Math.hypot(dx,dz),heading=Math.atan2(player.x-p.x,player.z-p.z);
 if(len>.1&&(dist>1.03||!sameFloor)){
   dx/=len;dz/=len;crowd.steer(e,dx,dz,elapsed);dx=e.steerX;dz=e.steerZ;
-  const pace=(e.staggerLeft>0?0:1)*(frenzyWave===wave&&wave?1.4:1)*(e.attackTime>=0?(e.dog?.65:.4):1)*(e.legHit>0?.55:1),step=e.speed*worldEvents.speedMultiplier(e)*dt*pace;
+  const pace=(e.staggerLeft>0?0:1)*(e.crawling?(e.crawlDrop>0?0:CRAWL.speed):1)*(frenzyWave===wave&&wave?1.4:1)*(e.attackTime>=0?(e.dog?.65:.4):1)*(e.legHit>0?.55:1),step=e.speed*worldEvents.speedMultiplier(e)*dt*pace;
   moveWithCollision(p,dx*step,dz*step,e.radius,e);
   const moved=Math.hypot(p.x-oldX,p.z-oldZ);
   e.stuck=moved<step*.15?e.stuck+dt:0;

@@ -13,6 +13,37 @@ const styles=[
 
 // Each enemy owns its small geometry/material palette. Meshes are merged per joint
 // by the game, retaining articulation, vertex colors, and precise hit regions.
+// Gait personality (v124). Every walker rolls its own drag leg, sway, hunch,
+// arm carriage, bob and limb timing, so a crowd moves differently without
+// extra assets. Arms and hips run slightly out of step with the legs.
+export const ARM_POSES=Object.freeze(['reach','dangle','mixed','clutch']);
+export function rollGait(rng=Math.random,{feral=false,brute=false}={}){
+  const pick=rng();
+  return {
+    dragLeg:rng()<.5?0:1,
+    sway:.6+rng()*.9,
+    hunch:feral?rng()*.06:brute?.05+rng()*.1:rng()*.24,
+    arms:feral?'clutch':brute?(pick<.5?'dangle':'clutch'):pick<.3?'reach':pick<.55?'dangle':pick<.75?'mixed':'clutch',
+    reachArm:rng()<.5?0:1,
+    armLag:.15+rng()*.55,
+    hipLag:-.25+rng()*.5,
+    bob:.6+rng()*.8,
+    scuff:.35+rng()*.6
+  };
+}
+const DEFAULT_GAIT=Object.freeze({dragLeg:0,sway:1,hunch:0,arms:'clutch',reachArm:0,armLag:0,hipLag:0,bob:1,scuff:0});
+// Arm carriage: base pitch, swing, forearm bend.
+const ARM_CARRIAGE={reach:[-1.12,.10,-.12],dangle:[-.10,.30,-.06],clutch:[-.30,.22,-.23]};
+
+// Crawlers (v124): enough leg damage drops walkers and ferals to the floor.
+export const CRAWL=Object.freeze({legShare:.4,speed:.42,height:.8,drop:.55,hip:.22,pitch:1.42});
+export function noteLegDamage(e,amount){
+  if(e.dog||e.brute||e.dead||e.crawling)return false;
+  e.legDamage=(e.legDamage||0)+amount;
+  if(e.hp>0&&e.legDamage>=e.maxHp*CRAWL.legShare){e.crawling=true;e.crawlDrop=CRAWL.drop;e.crawl=e.crawl||0;return true;}
+  return false;
+}
+
 export function createZombieRig({rng=Math.random,brute=false,feral=false}={}){
   const rand=(a,b)=>a+(b-a)*rng(),style=feral?{name:'feral stalker',coat:0x66553e,pants:0x302d29,skin:0xc3c4ac,bulk:.78}:brute?{name:'estate brute',coat:0x45493f,pants:0x30342e,skin:0x929879,bulk:1.3,apron:true}:styles[Math.floor(rng()*styles.length)];
   const group=new T.Group(),root=new T.Group();group.add(root);root.position.y=.92;
@@ -129,7 +160,7 @@ export function createZombieRig({rng=Math.random,brute=false,feral=false}={}){
     const thumb=detail(hand,skin,[side*.049,-.034,.014],[.015,.039,.016]);thumb.rotation.z=side*.5;
     arms.push({pivot:arm,forearm,hand});pieces.push({node:arm,a:tag+'shoulder',b:tag+'elbow'},{node:forearm,a:tag+'elbow',b:tag+'wrist'},{node:hand,a:tag+'wrist',b:tag+'palm'});
   }
-  const rig={group,root,spine,torso,head,jaw,legs,arms,pieces,resources,style:style.name,faceSnarl,phase:rand(0,6.28),limp:rand(.12,.4),lean:rand(-.12,.12),stride:rand(.85,1.15),attackHand:Math.floor(rng()*2),attackTime:-1,flinch:0,flinchDirection:1,brute,feral};
+  const rig={group,root,spine,torso,head,jaw,legs,arms,pieces,resources,style:style.name,faceSnarl,phase:rand(0,6.28),limp:rand(.12,.4),lean:rand(-.12,.12),stride:rand(.85,1.15),gait:rollGait(rng,{feral,brute}),attackHand:Math.floor(rng()*2),attackTime:-1,flinch:0,flinchDirection:1,brute,feral};
   // Uniform global scale keeps joint matrices free of shear when a ragdoll detaches.
   group.scale.setScalar(brute?BRUTE.scale:rand(.97,1.06));
   return rig;
@@ -190,15 +221,17 @@ export function applyHitReaction(e,dt){
 export function animateZombie(e,dt,distance,moved){
   const moving=clamp(moved/Math.max(dt*e.speed,.0001),0,1),blend=1-Math.exp(-dt*12);
   e.motion=T.MathUtils.lerp(e.motion||0,moving,blend);e.phase+=moved*6.4/e.stride;e.idle=(e.idle||0)+dt;
-  const p=e.phase,w=e.motion,run=clamp((e.speed-1.1)/1.8,0,1);
-  e.root.position.y=.92-Math.abs(Math.sin(p))*.025*w-(e.legHit>0?.055:0);
-  e.root.rotation.set(.055+run*.08+(e.feral?.14:0),Math.sin(p)*.055*w,Math.sin(p)*e.limp*.1*w);
-  e.spine.rotation.set(.1+run*.07+(e.feral?.12:0),Math.sin(p)*.095*w,e.lean*.3);
-  e.head.rotation.set((e.feral?-.24:-.07)+Math.sin(e.idle*1.1)*.055,Math.sin(p*.5)*.065,e.lean+Math.sin(e.idle*.8)*.035);
+  const p=e.phase,w=e.motion,run=clamp((e.speed-1.1)/1.8,0,1),g=e.gait||DEFAULT_GAIT,hip=p+g.hipLag;
+  // The dragged leg's stance dips the hips; the other leg recovers it.
+  const dragStance=Math.max(0,Math.sin(p+g.dragLeg*Math.PI)),dragSign=g.dragLeg?-1:1;
+  e.root.position.y=.92-Math.abs(Math.sin(p))*.025*g.bob*w-dragStance*e.limp*.06*w-(e.legHit>0?.055:0);
+  e.root.rotation.set(.055+run*.08+(e.feral?.14:0)+g.hunch*.4,Math.sin(hip)*.055*g.sway*w,dragSign*Math.sin(hip)*e.limp*.1*w);
+  e.spine.rotation.set(.1+run*.07+(e.feral?.12:0)+g.hunch,Math.sin(hip)*.095*g.sway*w,e.lean*.3);
+  e.head.rotation.set((e.feral?-.24:-.07)-g.hunch*.7+Math.sin(e.idle*1.1)*.055,Math.sin(p*.5)*.065,e.lean+Math.sin(e.idle*.8)*.035);
   e.jaw.rotation.x=(e.faceSnarl??.14)+Math.sin(e.idle*2.3)*.025;
   let contact=false;
-  if(e.staggerLeft>0)e.attackTime=-1;
-  if(!(e.staggerLeft>0)&&e.attackTime<0&&distance<1.65&&e.attack<=0){e.attackTime=0;e.attackHand=1-e.attackHand;e.attack=.95+(e.brute?.25:0);}
+  if(e.staggerLeft>0||e.crawlDrop>0)e.attackTime=-1;
+  if(!(e.staggerLeft>0)&&!(e.crawlDrop>0)&&e.attackTime<0&&distance<1.65&&e.attack<=0){e.attackTime=0;e.attackHand=1-e.attackHand;e.attack=.95+(e.brute?.25:0);}
   let strike=0,windup=0;
   if(e.attackTime>=0){const prev=e.attackTime;e.attackTime+=dt;const hit=e.brute?.46:.34;windup=clamp(e.attackTime/hit,0,1);strike=clamp((e.attackTime-hit)/.17,0,1);contact=prev<hit&&e.attackTime>=hit;
     e.spine.rotation.y+=(e.attackHand?1:-1)*Math.sin(Math.min(1,e.attackTime/.85)*Math.PI)*.33;
@@ -206,9 +239,13 @@ export function animateZombie(e,dt,distance,moved){
     if(e.attackTime>.85){e.attackTime=-1;strike=windup=0;}
   }
   for(let j=0;j<2;j++){
-    const v=Math.sin(p+j*Math.PI),side=j?1:-1,limp=j===0?1-e.limp:1,leg=e.legs[j],arm=e.arms[j];
-    leg.pivot.rotation.set(v*(.42+run*.16+(e.feral?.14:0))*w*limp,0,side*.025);leg.calf.rotation.x=Math.max(0,-v)*(.62+run*.25)*w+.04;leg.foot.rotation.x=-leg.calf.rotation.x*.35;
-    arm.pivot.rotation.set(-.3-v*.22*w-run*.14,side*.09,side*(.10+Math.sin(p*.5)*.035));arm.forearm.rotation.set((e.feral?-.7:-.23)-Math.max(0,v)*.18*w,0,side*.055);arm.hand.rotation.set(-.17,0,side*.13);
+    const v=Math.sin(p+j*Math.PI),a=Math.sin(p+j*Math.PI-g.armLag),side=j?1:-1,drag=j===g.dragLeg,limp=drag?1-e.limp:1,leg=e.legs[j],arm=e.arms[j];
+    leg.pivot.rotation.set(v*(.42+run*.16+(e.feral?.14:0))*w*limp,0,side*.025);
+    // The dragged foot barely lifts and scuffs toe-down.
+    leg.calf.rotation.x=Math.max(0,-v)*(.62+run*.25)*w*(drag?1-g.scuff*.6:1)+.04;leg.foot.rotation.x=-leg.calf.rotation.x*.35+(drag?g.scuff*.22*w:0);
+    const pose=g.arms==='mixed'?(j===g.reachArm?'reach':'dangle'):g.arms,[base,swing,bend]=ARM_CARRIAGE[pose];
+    arm.pivot.rotation.set(base-a*swing*w-run*.14,side*(pose==='reach'?.04:.09),side*(.10+Math.sin(p*.5)*.035));
+    arm.forearm.rotation.set((e.feral?-.7:bend)-Math.max(0,a)*.18*w,0,side*.055);arm.hand.rotation.set(pose==='reach'?-.05:-.17,0,side*.13);
     if(e.attackTime>=0&&(j===e.attackHand||e.brute)){
       const recover=1-clamp((e.attackTime-.54)/.31,0,1);
       arm.pivot.rotation.x+=(-.55*windup-1.05*Math.sin(strike*Math.PI/2))*recover;
@@ -220,7 +257,26 @@ export function animateZombie(e,dt,distance,moved){
     e.root.position.y-=.39*crouch;e.spine.rotation.x+=.6*crouch;
     for(const leg of e.legs){leg.pivot.rotation.x-=crouch;leg.calf.rotation.x+=2*crouch;leg.foot.rotation.x-=crouch;}
   }
+  if(e.crawling)applyCrawl(e,dt,w);
   applyHitReaction(e,dt);return contact;
+}
+
+// Drop to the floor over CRAWL.drop seconds, then haul along on the arms with
+// the legs trailing. Blending from the walk pose keeps the fall continuous.
+const lerp=T.MathUtils.lerp;
+function applyCrawl(e,dt,w){
+  e.crawlDrop=Math.max(0,(e.crawlDrop||0)-dt);e.crawl=Math.min(1,(e.crawl||0)+dt/CRAWL.drop);
+  const c=e.crawl*e.crawl*(3-2*e.crawl),p=e.phase;
+  // Centre the long, low body over its collision cylinder.
+  e.root.position.y=lerp(e.root.position.y,CRAWL.hip,c);e.root.position.z=.15*c;e.root.rotation.x=lerp(e.root.rotation.x,CRAWL.pitch,c);e.root.rotation.z*=1-c;
+  e.spine.rotation.x=lerp(e.spine.rotation.x,.06,c);e.head.rotation.x=lerp(e.head.rotation.x,-1.2,c);
+  for(let j=0;j<2;j++){
+    const v=Math.sin(p+j*Math.PI),side=j?1:-1,arm=e.arms[j],leg=e.legs[j];
+    // Alternating reach and pull; an attacking arm keeps its strike on top.
+    arm.pivot.rotation.x=lerp(arm.pivot.rotation.x,-2.5+v*.5*w,c);arm.pivot.rotation.z=lerp(arm.pivot.rotation.z,side*.28,c);
+    arm.forearm.rotation.x=lerp(arm.forearm.rotation.x,-.3-Math.max(0,v)*.6*w,c);
+    leg.pivot.rotation.x=lerp(leg.pivot.rotation.x,-.18+v*.14*w,c);leg.calf.rotation.x=lerp(leg.calf.rotation.x,.55+Math.max(0,-v)*.35*w,c);leg.foot.rotation.x=lerp(leg.foot.rotation.x,.5,c);
+  }
 }
 
 const forceScale=force=>clamp(force??1,.5,4)*1.5;

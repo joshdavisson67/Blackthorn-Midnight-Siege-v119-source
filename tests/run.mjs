@@ -255,3 +255,6 @@ verifyTouchControls(qa,frames,listeners,elements,document,gameCanvas);
 
 const {verifyCrowdSpread}=await import('./crowd-spread.mjs');
 verifyCrowdSpread(qa,frames);
+
+const {verifyZombieMotion}=await import('./zombie-motion.mjs');
+verifyZombieMotion(qa,frames);
