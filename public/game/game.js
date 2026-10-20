@@ -4,8 +4,8 @@ import {CURSE_RULES,createCurse,curseWaveConfig,curseReward,chooseCurseEnemyKind
 import {createCurseUI} from './curse-ui.mjs?v=116';
 import {ENRAGE,enrageNearby} from './enrage.mjs?v=27';
 import {createCrowd,enemyBody,PLAYER_RADIUS,SPREAD} from './crowd.mjs?v=123';
-import {createLeaderboard} from './leaderboard.mjs?v=126';
-import {createChangelog} from './changelog.mjs?v=126';
+import {createLeaderboard} from './leaderboard.mjs?v=127';
+import {createChangelog} from './changelog.mjs?v=127';
 import {configureMinimap} from './minimap-settings.mjs?v=79';
 import {COMBAT,createWeaponRecoil,staggerLimits,advanceStagger,registerStagger,createCombatHud} from './combat-feedback.mjs?v=84';
 import {ARMOR,armorRank} from './armor.mjs?v=94';
@@ -18,7 +18,8 @@ import {SHED,SHED_FRONT,inShed} from './shed-layout.mjs?v=76';
 import {buildShed} from './shed.mjs?v=125';
 import * as T from './three.module.js';
 import {createRenderScale} from './render-scale.mjs?v=120';
-import {createTouchControls,touchPreferred,TOUCH} from './touch-controls.mjs?v=121';
+import {createTouchControls,TOUCH} from './touch-controls.mjs?v=127';
+import {createControlScheme} from './input-scheme.mjs?v=127';
 import {columnSurfaceGeometry} from './column-surfaces.mjs?v=93';
 import {createStationBuilder} from './station-models.mjs?v=125';
 import {createWeaponModel,updatePistolSlide} from './weapon-models.mjs?v=125';
@@ -647,7 +648,11 @@ const WEAPON_CYCLE=['glock','shotgun','smg','lmg','bushmaster','rifle'];
 function toggleFlashlight(){flashlightOn=!flashlightOn;flashlight.intensity=flashlightOn?FLASHLIGHT_INTENSITY:0;}
 function cycleWeapon(){const owned=WEAPON_CYCLE.filter(k=>inventory[k]?.owned);if(owned.length<2)return;selectWeapon(owned[(owned.indexOf(weapon)+1)%owned.length]);}
 function touchLook(dx,dy){if(mode!=='playing')return;const sens=Number($('sensitivity').value)*TOUCH.lookSpeed*(aiming?.62/(weapons[weapon].zoom||1):1);lookYaw-=dx*sens;lookPitch=clamp(lookPitch-dy*sens,-1.3,1.3);}
-touchControls=createTouchControls({document,toggle:$('touchToggle'),preferred:touchPreferred(window),actions:{
+// Phones start on touch controls and computers on mouse and keyboard; a pause-
+// menu change is remembered per kind of device. Controllers are detected, but
+// take over only once gamepad play exists (controllerSupported).
+const controlScheme=createControlScheme({win:window,controllerSupported:false,onChange:scheme=>touchControls?.setEnabled(scheme==='touch')});
+touchControls=createTouchControls({document,toggle:$('touchToggle'),enabled:controlScheme.scheme==='touch',onToggle:on=>controlScheme.choose(on?'touch':'standard'),actions:{
   look:touchLook,
   fireStart(){if(mode!=='playing')return;if(clickRotundaBell())return;if(!mouseDown){mouseDown=true;shoot();}},
   fireEnd(){mouseDown=false;},

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {TOUCH,touchPreferred} from '../public/game/touch-controls.mjs';
+import {TOUCH} from '../public/game/touch-controls.mjs';
 
 // Phone controls: the pause-menu switch, play without mouse capture, analog
 // stick speed and sprint, look, every on-screen action, and switching back.
@@ -9,15 +9,15 @@ export function verifyTouchControls(qa,frames,listeners,elements,document,gameCa
   const touch=()=>qa.get().touchControls,body=document.body,toggle=elements.get('touchToggle'),resume=elements.get('resume');
   const press=(name,type='pointerdown',extra={})=>touch().buttons[name].dispatchEvent(event(type,{pointerId:40,clientX:700,clientY:300,...extra}));
   const tap=name=>{press(name);press(name,'pointerup');};
-  assert.equal(touchPreferred({matchMedia:q=>({matches:q==='(pointer: coarse)'})}),true,'Phones default to touch controls');
-  assert.equal(touchPreferred({matchMedia:()=>({matches:true})}),false,'Touchscreen laptops with a trackpad keep the mouse scheme');
-  assert.equal(touchPreferred({}),false);
+  const scheme=()=>qa.get().controlScheme;
+  assert.equal(scheme().device,'desktop');assert.equal(scheme().scheme,'standard','The test desktop is detected at load');
 
   qa.start();qa.holdSpawns();frames(2);
   listeners.keydown({code:'Escape'});assert.equal(qa.get().mode,'paused');
   assert.equal(touch().enabled,false,'Desktop default stays on mouse controls');
   assert.equal(toggle.getAttribute('aria-checked'),'false');assert.match(resume.textContent,/LOCK MOUSE/);
   toggle.onclick();
+  assert.equal(scheme().scheme,'touch');assert.equal(scheme().choice,'touch','The pause-menu switch is the player choosing a scheme');
   assert(touch().enabled&&body.classList.contains('touch-controls'));assert.equal(toggle.getAttribute('aria-checked'),'true');
   assert.equal(resume.textContent,'RESUME →','The pause menu switches to touch wording immediately');
   assert.match(elements.get('pauseText').textContent,/Tap Resume/);
@@ -80,6 +80,6 @@ export function verifyTouchControls(qa,frames,listeners,elements,document,gameCa
 
   // Switching back restores the mouse scheme.
   listeners.keydown({code:'Escape'});toggle.onclick();
-  assert.equal(touch().enabled,false);assert(!body.classList.contains('touch-controls'));assert.match(resume.textContent,/LOCK MOUSE/);
+  assert.equal(scheme().scheme,'standard');assert.equal(touch().enabled,false);assert(!body.classList.contains('touch-controls'));assert.match(resume.textContent,/LOCK MOUSE/);
   frames(2);console.log('PASS: touch controls — pause-menu switch, play without mouse lock, analog stick with dead zone and forward sprint, look/fire-and-steer, AIM/JUMP/RELOAD/LIGHT/SWAP/NADE/USE/MAP/II, USE prompts, and switching back to mouse.');
 }

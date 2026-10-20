@@ -1,8 +1,8 @@
 // Phone shooter controls: a floating left thumbstick moves, dragging anywhere
 // on the right half looks, and on-screen buttons cover every keyboard action.
 // The fire button also steers while held, so a thumb can shoot and track a
-// target in one motion. Touch play does not need mouse capture.
-export const TOUCH_STORAGE_KEY='blackthorn-touch-controls';
+// target in one motion. Touch play does not need mouse capture. Which scheme
+// is on (and remembering the player's choice) belongs to input-scheme.mjs.
 export const TOUCH=Object.freeze({
   stickRadius:56,     // CSS px of thumb travel for full speed
   deadZone:.12,       // fraction of the radius ignored around the centre
@@ -11,18 +11,13 @@ export const TOUCH=Object.freeze({
   lookSpeed:.0055     // radians per CSS px at sensitivity 1
 });
 
-// Phones and tablets without a mouse or trackpad.
-export function touchPreferred(win=globalThis){
-  try{return !!win.matchMedia?.('(pointer: coarse)').matches&&!win.matchMedia('(any-pointer: fine)').matches;}catch{return false;}
-}
-
 const BUTTONS=[
   ['fire','FIRE','touchFire'],['aim','AIM','touchAim'],['jump','JUMP','touchJump'],
   ['reload','RELOAD','touchReload'],['grenade','NADE','touchGrenade'],['use','USE','touchUse'],
   ['swap','SWAP','touchSwap'],['light','LIGHT','touchLight'],['map','MAP','touchMap'],['pause','II','touchPause']
 ];
 
-export function createTouchControls({document,toggle,storage=globalThis.localStorage,preferred=false,actions,onChange=()=>{}}){
+export function createTouchControls({document,toggle,enabled:initial=false,actions,onToggle=null,onChange=()=>{}}){
   const body=document.body;
   const root=document.createElement('div');root.id='touchControls';root.setAttribute('aria-hidden','true');
   const moveZone=document.createElement('div');moveZone.className='touchZone touchMoveZone';
@@ -38,8 +33,7 @@ export function createTouchControls({document,toggle,storage=globalThis.localSto
   const hint=document.createElement('div');hint.id='touchRotate';hint.innerHTML='<b>TURN YOUR PHONE SIDEWAYS</b><span>Blackthorn plays in landscape.</span>';
   body.append(root,hint);
 
-  let enabled=preferred,active=false,movePointer=null,lookPointer=null,firePointer=null,originX=0,originY=0,lastX=0,lastY=0;
-  try{const saved=storage?.getItem(TOUCH_STORAGE_KEY);if(saved==='on')enabled=true;else if(saved==='off')enabled=false;}catch{}
+  let enabled=!!initial,active=false,movePointer=null,lookPointer=null,firePointer=null,originX=0,originY=0,lastX=0,lastY=0;
   const move={x:0,z:0};let sprint=false;
   const shown={};
 
@@ -116,12 +110,10 @@ export function createTouchControls({document,toggle,storage=globalThis.localSto
     toggle?.setAttribute('aria-checked',String(enabled));
     const label=toggle?.querySelector('[data-touch-setting]');if(label)label.textContent=enabled?'ON':'OFF';
   }
-  function setEnabled(value,{save=true}={}){
-    value=!!value;if(value===enabled&&save)return;enabled=value;
+  function setEnabled(value){
+    value=!!value;if(value===enabled)return;enabled=value;
     if(!enabled)setActive(false);
-    apply();
-    if(save)try{storage?.setItem(TOUCH_STORAGE_KEY,enabled?'on':'off');}catch{}
-    onChange(enabled);
+    apply();onChange(enabled);
   }
   function setActive(value){
     value=enabled&&!!value;if(value===active)return;active=value;
@@ -134,7 +126,8 @@ export function createTouchControls({document,toggle,storage=globalThis.localSto
       const v=!!state[key];if(shown[key]!==v){shown[key]=v;el.classList.toggle(cls,v);}
     }
   }
-  if(toggle)toggle.onclick=()=>setEnabled(!enabled);
+  // The pause-menu switch asks the scheme owner, which calls setEnabled back.
+  if(toggle)toggle.onclick=()=>onToggle?onToggle(!enabled):setEnabled(!enabled);
   apply();
   return {
     get enabled(){return enabled;},get active(){return active;},get sprint(){return active&&sprint;},
