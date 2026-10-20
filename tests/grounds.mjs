@@ -3,6 +3,7 @@ import * as T from '../public/game/three.module.js';
 import {CELLAR} from '../public/game/cellar-layout.mjs';
 import {GRAVEYARD} from '../public/game/graveyard-layout.mjs';
 import {estateLocation} from '../public/game/estate-layout.mjs';
+import {GRASS_TUFTS,lawnCharacter,lawnTint,LAWN} from '../public/game/grounds.mjs';
 
 export function verifyGrounds(qa){
   const {world}=qa.get();world.updateMatrixWorld(true);
@@ -36,7 +37,7 @@ export function verifyGrounds(qa){
   assert.equal(material.map.minFilter,T.LinearMipmapLinearFilter);assert(material.map.anisotropy>=8);assert.equal(material.roughness,1);
 
   const grass=world.getObjectByName('estate-grass-tufts'),matrix=new T.Matrix4(),root=new T.Vector3();
-  assert(grass.isInstancedMesh&&grass.count===900,'Foliage remains one fixed-size instanced draw');
+  assert(grass.isInstancedMesh&&grass.count===GRASS_TUFTS,'Foliage remains one fixed-size instanced draw');
   const coverage={front:0,west:0,east:0,north:0,cemetery:0};
   for(let i=0;i<grass.count;i++){
     grass.getMatrixAt(i,matrix);root.setFromMatrixPosition(matrix);
@@ -45,11 +46,24 @@ export function verifyGrounds(qa){
     if(root.x>54)coverage.cemetery++;else if(root.z>12)coverage.front++;else if(root.z<-84)coverage.north++;else if(root.x<0)coverage.west++;else coverage.east++;
   }
   for(const [region,count] of Object.entries(coverage))assert(count>20,`${region} lawn should have grass coverage`);
+
+  // Lawn character: the turf is tinted by worn, dry, mossy and shaded patches
+  // rather than one flat green, and the tufts vary in height and colour.
+  const tints=[];for(let x=LAWN.minX;x<=LAWN.maxX;x+=3)for(let z=LAWN.minZ;z<=LAWN.maxZ;z+=3){const t=lawnTint(lawnCharacter(x,z));tints.push(t);assert(t.every(v=>v>0&&v<=LAWN.range),'Lawn tint stays inside the encoded range');}
+  const greens=tints.map(t=>t[1]);assert(Math.max(...greens)-Math.min(...greens)>.45,'The lawn has visibly lighter and darker patches');
+  assert(tints.some(t=>t[0]>t[1]*.95)&&tints.some(t=>t[1]>t[0]*1.15),'Straw-coloured dry patches sit beside lush green ones');
+  const tree={x:-20,z:20},under=lawnCharacter(tree.x+1,tree.z,[tree]),open=lawnCharacter(tree.x+1,tree.z,[]);
+  assert(under.shade>open.shade+.3,'Tree canopies shade the turf beneath them');
+  assert(lawnCharacter(0,19.4).mud>lawnCharacter(-20,26).mud,'Turf wears thin beside the paths');
+  const heights=[],shades=new Set();
+  for(let i=0;i<grass.count;i+=37){grass.getMatrixAt(i,matrix);heights.push(new T.Vector3().setFromMatrixScale(matrix).y);const c=new T.Color();grass.getColorAt(i,c);shades.add(c.getHexString());}
+  assert(Math.max(...heights)>Math.min(...heights)*1.8,'Tufts range from short to long');assert(shades.size>=4,'Tufts are not all one colour');
+  assert(grass.material.customProgramCacheKey().includes('tufts')&&material.customProgramCacheKey().includes('lawn'),'Wind sway and lawn tint shaders are installed');
   for(const headstone of headstones){
     const bounds=new T.Box3().setFromObject(headstone);
     assert(bounds.min.x>=GRAVEYARD.minX&&bounds.max.x<=GRAVEYARD.maxX&&bounds.min.z>=GRAVEYARD.minZ&&bounds.max.z<=GRAVEYARD.maxZ,'Every rendered headstone remains within the cemetery fence');
   }
   assert.equal(qa.get().graveyard.graves.length,14);
   assert.equal(estateLocation(47,-20),'EAST GROUNDS');assert.equal(estateLocation(60,-20),'FAMILY CEMETERY');
-  console.log('PASS: textured grass across every lawn, continuous ground UVs, clear stone paths, 900 correctly rooted tufts, cellar opening and cemetery-only headstones.');
+  console.log(`PASS: textured grass across every lawn, continuous ground UVs, clear stone paths, lawn wear/dry/moss/shade patches, ${GRASS_TUFTS} varied, correctly rooted tufts, cellar opening and cemetery-only headstones.`);
 }
