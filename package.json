@@ -12,7 +12,7 @@
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "test": "node scripts/check-release-notes.mjs && node tests/run.mjs && node tests/render-scale.mjs && node --test tests/leaderboard-server.mjs tests/leaderboard-ui.mjs",
+    "test": "node scripts/check-release-notes.mjs && node tests/run.mjs && node tests/render-scale.mjs && node tests/input-scheme.mjs && node --test tests/leaderboard-server.mjs tests/leaderboard-ui.mjs",
     "profile": "node tests/profile.mjs",
     "test:shadows": "node tests/shadow-filter.mjs && python tests/shadow-filter.py && SHADOW_TYPE=BASIC node tests/shadow-filter.mjs && python tests/shadow-filter.py",
     "release:seal": "node scripts/check-release-notes.mjs --seal"

@@ -27,6 +27,36 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Controller support (version 128)
+
+Blackthorn plays on a game controller through the browser Gamepad API (standard layout: Xbox, PlayStation and Switch Pro controllers in current browsers). `gamepad-controls.mjs` polls the controller once per frame.
+
+| Control | Action |
+|---|---|
+| Left stick (click) | Move with analog speed (click to sprint while pushing forward) |
+| Right stick | Look |
+| RT / R2 · LT / L2 | Fire · aim |
+| A / ✕ · B / ○ | Jump · use or buy |
+| X / □ · Y / △ | Reload · next weapon |
+| RB / R1 · LB / L1 | Grenade · flashlight |
+| D-pad | ← → switch weapons, ↑ flashlight |
+| View / Share · Menu / Options | Estate map · pause and resume |
+
+- **Look feel:** radial dead zones stop stick drift, and a curved response gives fine aim near the centre. Holding the stick at the rim speeds up turning. Aiming slows the look speed (scaled by scope zoom), and it slows a little more while the sights sit over an enemy body (light aim assist, no snapping). Triggers have press/release hysteresis.
+- **Menus:** the controller drives every menu. The D-pad or left stick moves a gold focus ring between buttons (spatial, with hold-to-repeat), A presses, B goes back or resumes, Menu starts or resumes, the right stick scrolls long pages like the field guide, and left/right adjust the quality and sensitivity controls on the title screen.
+- **Switching:** the last device used takes over. Any controller button hands play to the controller, and that press also does its job, so A on the title screen starts a run. A real key, click or tap hands play back. Controller play needs no mouse lock. Unplugging the controller restores the device's own scheme. Switching by use is never saved.
+- **Feedback:** prompts show **B** for use and buy. The controller vibrates per weapon when firing, harder when you take damage, and with distance falloff for nearby explosions. The pause menu shows the connected controller and has a vibration switch, which is saved.
+
+Browsers only reveal a controller after one of its buttons is pressed with the page open. In embedded previews the Gamepad API may be blocked, so play from the GitHub Pages site.
+
+## Automatic controls (version 127)
+
+The game now picks the control scheme when it loads. Phones and tablets start with touch controls, and computers start with mouse and keyboard. The check uses the device's primary pointer, so touchscreen laptops with a trackpad stay on mouse controls, and stylus phones (which also report a fine pointer) still get touch. It falls back to platform hints in browsers without pointer media queries, and switches live if a tablet gains or loses a trackpad.
+
+The pause-menu switch still works. A change is now remembered per kind of device (touch or desktop) instead of globally, so a choice made on one device never sticks on another. The old global touch setting from versions 121–126 is cleared once, so a phone can no longer stay stuck on mouse controls.
+
+`input-scheme.mjs` already supports a third scheme, controller. Browsers only reveal a gamepad after a button is pressed, so a controller is picked up from the connect event, or at load if one is already known. It takes over when connected, the player can switch away from it, and unplugging it restores the device default. It stays off (`controllerSupported:false` in `game.js`) until gamepad play is added, so a connected controller changes nothing yet.
+
 ## Lawn character (version 126)
 
 The lawns were one repeating 3.2 m green tile with 900 identical tufts, about one per 12 m², so the grounds read as flat carpet. At load the game now bakes an estate-wide character map from layered noise and the estate layout, and the turf shader tints the tile with it: broad lush and straw-dry patches, worn earth along path and grave-slab edges, darker moss at the foot of walls and the mansion, shade under each tree, and fine mottling. The tile texture itself is unchanged, so this costs one small texture lookup.
