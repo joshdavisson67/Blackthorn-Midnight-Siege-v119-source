@@ -4,14 +4,14 @@ import {CURSE_RULES,createCurse,curseWaveConfig,curseReward,chooseCurseEnemyKind
 import {createCurseUI} from './curse-ui.mjs?v=116';
 import {ENRAGE,enrageNearby} from './enrage.mjs?v=27';
 import {createCrowd,enemyBody,PLAYER_RADIUS,SPREAD} from './crowd.mjs?v=123';
-import {createLeaderboard} from './leaderboard.mjs?v=125';
-import {createChangelog} from './changelog.mjs?v=125';
+import {createLeaderboard} from './leaderboard.mjs?v=126';
+import {createChangelog} from './changelog.mjs?v=126';
 import {configureMinimap} from './minimap-settings.mjs?v=79';
 import {COMBAT,createWeaponRecoil,staggerLimits,advanceStagger,registerStagger,createCombatHud} from './combat-feedback.mjs?v=84';
 import {ARMOR,armorRank} from './armor.mjs?v=94';
-import {createGrassMaterial,alignGrassPatch,ESTATE_PATHS,ESTATE_PAVING} from './grounds.mjs?v=116';
+import {createGrassMaterial,alignGrassPatch,ESTATE_PATHS,ESTATE_PAVING,bakeLawnMap} from './grounds.mjs?v=126';
 import {MAUSOLEUM,inMausoleum,inGraveyard} from './graveyard-layout.mjs?v=28';
-import {buildGraveyard} from './graveyard.mjs?v=116';
+import {buildGraveyard} from './graveyard.mjs?v=126';
 import {CELLAR,isCellarOpen,setCellarOpen,cellarStairHeight} from './cellar-layout.mjs?v=28';
 import {buildCellar,drawCellarMap} from './cellar.mjs?v=125';
 import {SHED,SHED_FRONT,inShed} from './shed-layout.mjs?v=76';
@@ -35,7 +35,7 @@ import {UPPER_Y,UPPER_CEILING,UPPER_SPAWNS,hasUpperFloor,STAIR,EXTERIOR_STAIRS,s
 import {buildSecondFloor,drawUpperMap} from './second-floor.mjs?v=125';
 import {BELLA,BELLA_PAW,createBellaCompanion} from './bella.mjs?v=116';
 import {tagZombie,reactToHit,animateZombie,beginZombieDeath,updateZombieDeath,noteLegDamage,CRAWL} from './zombies.mjs?v=124';
-import {addEstateDetail} from './estate-detail.mjs?v=116';
+import {addEstateDetail} from './estate-detail.mjs?v=126';
 import {buildFacade,mansionRoofGeometry,PORTICO} from './facade.mjs?v=125';
 import {createReticleHud} from './reticles.mjs?v=116';
 import {createFurnishings} from './furnishings.mjs?v=59';
@@ -44,7 +44,7 @@ import {createSignage} from './signage.mjs?v=94';
 import {FORGE,forgeBonuses,configureForgeStation} from './soul-forge.mjs?v=118';
 import {loadEstateTextures,tiledBox,ambientEnvironment,makeFilmPass,renderCleanFrame,freezeStaticTransforms,finishMapFrom,OAK_FINISH,WET_STONE_FINISH,flashlightBeamTexture} from './graphics.mjs?v=125';
 import {ESTATE_SPAWNS,roomAt,estateLocation} from './estate-layout.mjs?v=28';
-import {buildMansionExpansion,drawEstateMap} from './mansion-expansion.mjs?v=125';
+import {buildMansionExpansion,drawEstateMap} from './mansion-expansion.mjs?v=126';
 import {buildRotundaBell} from './rotunda-bell.mjs?v=88';
 import {UPPER_SLAB_BOTTOM} from './upper-shell.mjs?v=116';
 import {EVENT_RULES,WORLD_EVENTS,createWorldEvents} from './world-events.mjs?v=97';
@@ -114,7 +114,7 @@ for(const {x,z,w,d,y} of ESTATE_PAVING)box(x,y,z,w,.1,d,M.wetStone);
 for(let side of [-1,1]){if(side<0)box(side*54,1,-39,.45,2.1,138,M.brick,world,true);else for(const [z,d] of [[-52.75,110.5],[19.75,20.5]])box(54,1,z,.45,2.1,d,M.brick,world,true);for(let z=-107;z<30;z+=1.6){if(side>0&&z>2.5&&z<9.5)continue;cylinder(side*54,2.4,z,.035,1.3);mesh(new T.ConeGeometry(.11,.24,4),M.dark,[side*54,3.14,z]);}}
 for(let z of [-108,30]){box(0,.4,z,108,.8,.45,M.brick,world,true);for(let x=-53;x<=53;x+=1.6){cylinder(x,1.45,z,.035,2.1);mesh(new T.ConeGeometry(.1,.24,4),M.dark,[x,2.6,z]);}box(0,1.15,z,108,.05,.05,M.dark);box(0,2.1,z,108,.05,.05,M.dark);}
 function branch(a,b,r){const dir=new T.Vector3().subVectors(b,a),m=mesh(new T.CylinderGeometry(r*.35,r,dir.length(),7),M.wood,a.clone().add(b).multiplyScalar(.5).toArray());m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),dir.normalize());}
-for(let i=0;i<54;i++){const x=(i%2?1:-1)*rand(49,52),rawZ=rand(-91,26),z=x>0&&rawZ>1&&rawZ<11?rawZ+12:rawZ,h=rand(5,10);cylinder(x,h/2,z,.23,h,M.wood);colliders.push({x,z,w:.7,d:.7});for(let j=0;j<6;j++){let a=new T.Vector3(x,h*.55,z),b=new T.Vector3(x+rand(-3,3),h+rand(-2,2),z+rand(-3,3));branch(a,b,.13);branch(b,b.clone().add(new T.Vector3(rand(-1.5,1.5),rand(1,2),rand(-1.5,1.5))),.06);}}
+const estateTrees=[];for(let i=0;i<54;i++){const x=(i%2?1:-1)*rand(49,52),rawZ=rand(-91,26),z=x>0&&rawZ>1&&rawZ<11?rawZ+12:rawZ,h=rand(5,10);cylinder(x,h/2,z,.23,h,M.wood);colliders.push({x,z,w:.7,d:.7});estateTrees.push({x,z});for(let j=0;j<6;j++){let a=new T.Vector3(x,h*.55,z),b=new T.Vector3(x+rand(-3,3),h+rand(-2,2),z+rand(-3,3));branch(a,b,.13);branch(b,b.clone().add(new T.Vector3(rand(-1.5,1.5),rand(1,2),rand(-1.5,1.5))),.06);}}
 function lampPost(x,z){cylinder(x,1.8,z,.07,3.6);cylinder(x,.15,z,.25,.3);for(const y of [3.31,3.89])box(x,y,z,.55,.055,.55,M.dark);for(const dx of [-.255,.255])for(const dz of [-.255,.255])box(x+dx,3.6,z+dz,.035,.55,.035,M.dark);const bulb=box(x,3.6,z,.42,.43,.42,new T.MeshStandardMaterial({color:0xffc884,emissive:0xffbb66,emissiveIntensity:2}));bulb.castShadow=false;mesh(new T.ConeGeometry(.45,.3,4),M.dark,[x,4.03,z]);point(x,3.5,z,0xffbb77,9,11);}
 lampPost(-7,21);lampPost(7,21);lampPost(-47,-36);lampPost(47,18);
 // MANSION: accessible ground floor with open central circulation.
@@ -214,7 +214,8 @@ box(0,9.7,-9.7,3.8,6,3.8,M.brick);const towerTop=mesh(new T.ConeGeometry(3.2,5,4
 const webMat=new T.LineBasicMaterial({color:0xaeb7a4,transparent:true,opacity:.14});for(const corner of [[-5.3,6.6,11.6],[5.3,6.6,11.6],[-13.6,6.6,-11.6],[13.6,6.6,-11.6]]){const pp=[],sign=corner[0]<0?1:-1;for(let i=0;i<8;i++){const a=i/7*Math.PI/2;pp.push(0,0,0,Math.cos(a)*sign*1.5,-Math.sin(a)*1.5,0);}for(let r=.35;r<1.6;r+=.25)for(let i=0;i<7;i++){const a=i/7*Math.PI/2,b=(i+1)/7*Math.PI/2;pp.push(Math.cos(a)*sign*r,-Math.sin(a)*r,0,Math.cos(b)*sign*r,-Math.sin(b)*r,0);}const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(pp,3));const w=new T.LineSegments(geo,webMat);w.position.set(...corner);world.add(w);}
 const shed=buildShed({world,M,box,mesh,cylinder,label,colliders,solidMeshes,interactables,batchArticulated});
 const shedEntrance={type:'shedDoor',x:SHED.x,z:SHED_FRONT+.6,y:0,price:0,name:'GROUNDSKEEPER’S SHED',hex:'#c4c9a9',get open(){return shed.open;}};interactables.push(shedEntrance);
-const estateDetail=addEstateDetail({scene,world,M,box,mesh,mistTex,fire,colliders,interactables});
+earth.userData.lawnMap=bakeLawnMap(estateTrees)||earth.userData.lawnMap;
+const estateDetail=addEstateDetail({scene,world,M,box,mesh,mistTex,fire,colliders,interactables,trees:estateTrees});
 const expansion=buildMansionExpansion({scene,world,M,box,mesh,cylinder,sphere,painting,sofa,bookcase,label,station,colliders,furnishings,rugs});
 const rotundaBell=buildRotundaBell({world,solidMeshes,interactables,batchArticulated});
 const secondFloor=buildSecondFloor({scene,world,M,box,mesh,cylinder,sphere,label,colliders,solidMeshes,interactables,station,furnishings,rugs});

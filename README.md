@@ -27,7 +27,12 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
-## Natural floor lighting (version 125)
+## Lawn character (version 126)
+
+The lawns were one repeating 3.2 m green tile with 900 identical tufts, about one per 12 m², so the grounds read as flat carpet. At load the game now bakes an estate-wide character map from layered noise and the estate layout, and the turf shader tints the tile with it: broad lush and straw-dry patches, worn earth along path and grave-slab edges, darker moss at the foot of walls and the mansion, shade under each tree, and fine mottling. The tile texture itself is unchanged, so this costs one small texture lookup.
+
+Foliage is now 8,000 tufts in one instanced draw. They grow in clumps of two to nine, densest and longest along paths, walls, tree roots and in lush patches, sparse and short in dry ones, with varied height, width and four blade shades (some with seed heads). A vertex-shader breeze bends the tips with travelling gusts, with no per-frame CPU work. Tufts still root only on real turf, clear of paving and graves.
+
 
 The flashlight used to paint a flat, overexposed disc with a hard rim on every floor: at arm's length it delivered roughly six times the lamps' light, so almost the whole pool clipped to white and the beam's falloff only showed as an abrupt edge. It now projects a torch-shaped beam: a bright core, a softer corona with a faint reflector ring, and a dim spill that fades smoothly to nothing, with a slightly irregular lens rim. The cone is a little wider and the peak a little lower, so pools on wood and stone show a gradient and their grain instead of a white plate, while zombies at 7–14 meters stay about as visible as before.
 

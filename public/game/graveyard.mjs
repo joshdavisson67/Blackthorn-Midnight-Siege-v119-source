@@ -1,7 +1,7 @@
 import * as T from './three.module.js';
 import {columnSurfaceGeometry} from './column-surfaces.mjs?v=93';
 import {GRAVEYARD,MAUSOLEUM,GRAVE_PLOTS,SARCOPHAGUS} from './graveyard-layout.mjs?v=28';
-import {alignGrassPatch,CEMETERY_PATHS} from './grounds.mjs?v=116';
+import {alignGrassPatch,CEMETERY_PATHS} from './grounds.mjs?v=126';
 import {createMausoleumNuke} from './mausoleum-nuke.mjs?v=61';
 export function buildGraveyard({world,M,earth,box,mesh,cylinder,label,colliders,solidMeshes,interactables,batchArticulated}){
   const fixtures=new T.MeshStandardMaterial({color:0xffc777,emissive:0xff9c44,emissiveIntensity:1.2,roughness:.4});

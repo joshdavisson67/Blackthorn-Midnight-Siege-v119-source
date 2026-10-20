@@ -42,7 +42,7 @@ export function verifyColumnSurfaces(qa){
   // Inspect the finished, clipped and statically batched game geometry. These
   // checks catch a constructor forgetting the mapping or using another finish.
   const {world}=qa.get();world.updateMatrixWorld(true);
-  const opaque=[];world.traverse(o=>{if(o.isMesh&&!o.material.transparent&&!o.userData.dynamic)opaque.push(o);});
+  const opaque=[];world.traverse(o=>{if(o.isMesh&&!o.material.transparent&&!o.material.alphaTest&&!o.userData.dynamic)opaque.push(o);});
   const ray=new T.Raycaster();ray.far=1.1;
   function front(x,y,z){
     ray.set(new T.Vector3(x,y,z+.85),new T.Vector3(0,0,-1));
