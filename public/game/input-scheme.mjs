@@ -54,7 +54,7 @@ export function createControlScheme({win=globalThis,storage,controllerSupported=
     // connected; otherwise the player's choice for this device, otherwise the
     // device's natural scheme.
     if(controller&&controllerSupported&&!dismissed)return 'controller';
-    if(choice&&(choice!=='controller'||controllerSupported))return choice;
+    if(choice&&choice!=='controller')return choice;
     return defaultScheme({device});
   }
   function update(reason){
@@ -65,6 +65,17 @@ export function createControlScheme({win=globalThis,storage,controllerSupported=
     const nextDevice=detectDevice(win);
     if(nextDevice!==device){device=nextDevice;choice=readChoice();}
     controller=connectedController(win);update(reason);
+  }
+  // The last device actually used takes over without being saved: pressing a
+  // controller button hands play to the controller, and a key, click or tap
+  // hands it back to the device's own scheme.
+  function noteInput(kind){
+    if(kind==='controller'){
+      if(!controllerSupported)return scheme;
+      controller=true;dismissed=false;
+    }else if(scheme==='controller')dismissed=true;
+    else return scheme;
+    update('input');return scheme;
   }
   function choose(next){
     if(!SCHEMES.includes(next))return scheme;
@@ -84,7 +95,7 @@ export function createControlScheme({win=globalThis,storage,controllerSupported=
   }
   return {
     get scheme(){return scheme;},get device(){return device;},get controller(){return controller;},get choice(){return choice;},
-    choose,refresh,
+    choose,refresh,noteInput,
     dispose(){for(const off of listeners.splice(0))off();}
   };
 }

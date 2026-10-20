@@ -155,11 +155,11 @@
 .pauseSetting{margin:20px 0 8px;padding:14px 0;border-top:1px solid #a7b1a32a;border-bottom:1px solid #a7b1a32a}
 .pauseSetting>span{display:block;color:var(--gold);font-size:10px;letter-spacing:2px;margin-bottom:10px}
 .pauseSetting>small{display:block;font-size:11px;line-height:1.5;color:#acbab7;margin-top:9px}
-#minimapToggle,#headshotToggle,#touchToggle{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:11px 13px;border:1px solid #596660;background:#101f26;color:var(--ivory);font-size:12px;letter-spacing:1.5px;text-align:left}
+#minimapToggle,#headshotToggle,#touchToggle,#rumbleToggle{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:11px 13px;border:1px solid #596660;background:#101f26;color:var(--ivory);font-size:12px;letter-spacing:1.5px;text-align:left}
 .pauseToggleTrack{display:flex;align-items:center;width:38px;height:22px;padding:3px;flex:none;border:1px solid #81938c77;border-radius:12px;background:#071015}
 .pauseToggleTrack i{width:14px;height:14px;flex:none;border-radius:50%;background:#a7b7ae;transition:transform .15s}
-#minimapToggle[aria-checked=true] .pauseToggleTrack,#headshotToggle[aria-checked=true] .pauseToggleTrack,#touchToggle[aria-checked=true] .pauseToggleTrack{border-color:var(--gold);background:#4d422b}
-#minimapToggle[aria-checked=true] .pauseToggleTrack i,#headshotToggle[aria-checked=true] .pauseToggleTrack i,#touchToggle[aria-checked=true] .pauseToggleTrack i{background:var(--gold);transform:translateX(16px)}
+#minimapToggle[aria-checked=true] .pauseToggleTrack,#headshotToggle[aria-checked=true] .pauseToggleTrack,#touchToggle[aria-checked=true] .pauseToggleTrack,#rumbleToggle[aria-checked=true] .pauseToggleTrack{border-color:var(--gold);background:#4d422b}
+#minimapToggle[aria-checked=true] .pauseToggleTrack i,#headshotToggle[aria-checked=true] .pauseToggleTrack i,#touchToggle[aria-checked=true] .pauseToggleTrack i,#rumbleToggle[aria-checked=true] .pauseToggleTrack i{background:var(--gold);transform:translateX(16px)}
 
 #hit[data-headshot=true]{font-size:43px;text-shadow:0 0 8px #cf7d334d}
 #headshotIndicator{position:absolute;left:50%;top:calc(50% + 38px);transform:translateX(-50%);font:600 12px 'Barlow Condensed',Arial,sans-serif;letter-spacing:2px;color:#f2c879;text-shadow:0 1px 3px #000;opacity:0;pointer-events:none}
@@ -409,3 +409,9 @@ body.touch-playing #fps{right:auto;left:calc(env(safe-area-inset-left,0px) + 166
 body.touch-playing #interaction{bottom:auto;top:58%;font-size:11px}
 @media(orientation:portrait){body.touch-playing #touchRotate{display:grid;place-content:center;gap:10px;position:fixed;inset:0;z-index:20;background:#030a0ef2;text-align:center;color:#e9e6d8;font:500 13px/1.5 Barlow,Arial,sans-serif;letter-spacing:1px}
 #touchRotate b{font:600 22px/1.2 'Barlow Condensed',Impact,sans-serif;letter-spacing:3px;color:var(--gold)}}
+
+/* Controller focus: a clear gold ring on whatever the D-pad has selected. */
+.padFocus{outline:2px solid var(--gold)!important;outline-offset:3px;box-shadow:0 0 0 5px rgba(212,183,122,.18)}
+#controllerStatus.inUse{color:var(--gold)}
+.guideSubheading{margin:18px 0 8px;font-size:12px;letter-spacing:2px;color:var(--gold)}
+body.pad-playing{cursor:none}

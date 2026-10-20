@@ -253,6 +253,9 @@ verifyWorldEvents(qa,frames,listeners,elements);
 const {verifyTouchControls}=await import('./touch.mjs');
 verifyTouchControls(qa,frames,listeners,elements,document,gameCanvas);
 
+const {verifyGamepad}=await import('./gamepad.mjs');
+verifyGamepad(qa,frames,listeners,elements,windowEvents);
+
 const {verifyCrowdSpread}=await import('./crowd-spread.mjs');
 verifyCrowdSpread(qa,frames);
 

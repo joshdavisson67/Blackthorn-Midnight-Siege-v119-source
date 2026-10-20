@@ -27,6 +27,28 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Controller support (version 128)
+
+Blackthorn plays on a game controller through the browser Gamepad API (standard layout: Xbox, PlayStation and Switch Pro controllers in current browsers). `gamepad-controls.mjs` polls the controller once per frame.
+
+| Control | Action |
+|---|---|
+| Left stick (click) | Move with analog speed (click to sprint while pushing forward) |
+| Right stick | Look |
+| RT / R2 · LT / L2 | Fire · aim |
+| A / ✕ · B / ○ | Jump · use or buy |
+| X / □ · Y / △ | Reload · next weapon |
+| RB / R1 · LB / L1 | Grenade · flashlight |
+| D-pad | ← → switch weapons, ↑ flashlight |
+| View / Share · Menu / Options | Estate map · pause and resume |
+
+- **Look feel:** radial dead zones stop stick drift, and a curved response gives fine aim near the centre. Holding the stick at the rim speeds up turning. Aiming slows the look speed (scaled by scope zoom), and it slows a little more while the sights sit over an enemy body (light aim assist, no snapping). Triggers have press/release hysteresis.
+- **Menus:** the controller drives every menu. The D-pad or left stick moves a gold focus ring between buttons (spatial, with hold-to-repeat), A presses, B goes back or resumes, Menu starts or resumes, the right stick scrolls long pages like the field guide, and left/right adjust the quality and sensitivity controls on the title screen.
+- **Switching:** the last device used takes over. Any controller button hands play to the controller, and that press also does its job, so A on the title screen starts a run. A real key, click or tap hands play back. Controller play needs no mouse lock. Unplugging the controller restores the device's own scheme. Switching by use is never saved.
+- **Feedback:** prompts show **B** for use and buy. The controller vibrates per weapon when firing, harder when you take damage, and with distance falloff for nearby explosions. The pause menu shows the connected controller and has a vibration switch, which is saved.
+
+Browsers only reveal a controller after one of its buttons is pressed with the page open. In embedded previews the Gamepad API may be blocked, so play from the GitHub Pages site.
+
 ## Automatic controls (version 127)
 
 The game now picks the control scheme when it loads. Phones and tablets start with touch controls, and computers start with mouse and keyboard. The check uses the device's primary pointer, so touchscreen laptops with a trackpad stay on mouse controls, and stylus phones (which also report a fine pointer) still get touch. It falls back to platform hints in browsers without pointer media queries, and switches live if a tablet gains or loses a trackpad.

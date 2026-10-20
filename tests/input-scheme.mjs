@@ -110,4 +110,20 @@ for(const device of [DESKTOP,PHONE]){
   scheme.dispose();win.pads.push({connected:true});win.fire('gamepadconnected');
   assert.equal(scheme.scheme,'standard','Disposed schemes stop listening');
 }
-console.log('PASS: control schemes — phones load touch, computers load mouse/keyboard (touchscreen laptops and stylus phones included), platform-hint fallbacks, retired global switch cleared, per-device remembered choices, live trackpad attach/detach, and controller takeover/hand-back ready for gamepad support.');
+// ---- The last device used takes over, without being saved ---------------------
+{
+  const storage=memoryStorage(),desk=createControlScheme({win:fakeWindow(DESKTOP),storage,controllerSupported:true});
+  assert.equal(desk.noteInput('keyboard'),'standard','Keyboard input on a desktop changes nothing');
+  assert.equal(desk.noteInput('controller'),'controller','A controller button takes over, even before a connect event');
+  assert.equal(desk.noteInput('keyboard'),'standard','A key or click hands play back');
+  assert.equal(desk.noteInput('controller'),'controller');
+  assert(!(CONTROL_STORAGE_KEY in storage.data),'Switching by use is never saved');
+  const phone=createControlScheme({win:fakeWindow(PHONE),storage:memoryStorage(),controllerSupported:true});
+  phone.noteInput('controller');assert.equal(phone.noteInput('touch'),'touch','A tap hands a phone back to touch controls');
+  const chose=createControlScheme({win:fakeWindow(PHONE),storage:memoryStorage(),controllerSupported:true});chose.choose('standard');
+  chose.noteInput('controller');assert.equal(chose.noteInput('touch'),'standard','Handing back restores the player\'s own choice');
+  assert.equal(createControlScheme({win:fakeWindow(DESKTOP),storage:memoryStorage()}).noteInput('controller'),'standard','Without gamepad support a pad cannot take over');
+  const saved=createControlScheme({win:fakeWindow(DESKTOP),storage:memoryStorage({[CONTROL_STORAGE_KEY]:JSON.stringify({device:'desktop',scheme:'controller'})}),controllerSupported:true});
+  assert.equal(saved.scheme,'standard','A saved controller choice never starts without a controller');
+}
+console.log('PASS: control schemes — phones load touch, computers load mouse/keyboard (touchscreen laptops and stylus phones included), platform-hint fallbacks, retired global switch cleared, per-device remembered choices, live trackpad attach/detach, controller takeover/hand-back, and last-device-used switching that is never saved.');
