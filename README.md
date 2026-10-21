@@ -27,6 +27,19 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Sir Blackthorn and the curse ladder (version 130)
+
+**The curse is now a ladder.** The Great Rotunda bell no longer asks you to embrace or resist every five waves. Instead you pick your curse rank on the title screen, under Enter the Estate, and it applies to the whole run from wave 1. The selector lists every rank you've unlocked plus the next one (locked), with a one-line summary of the chosen rank's effects. Rank effects are unchanged. Unlocks and your last choice are saved on this device (`blackthorn-curse-unlocked`, `blackthorn-curse-selected`). The bell stays as the rotunda's landmark and tolls when the boss falls. The leaderboard still records each run's rank; the server now accepts any rank up to the ladder's top (25) at any wave.
+
+**Sir Blackthorn**, the estate's first lord, is the boss. After wave 20, detonating The Last Dawn in the mausoleum (even on an empty estate) wakes him: the sarcophagus lid slides back off the tomb, he rises out of it (invulnerable while he climbs), and steps down in front of it. Regular spawns hold while he fights, and the run carries on as far as you can make it once he falls.
+
+- **Unique zombie:** a walker rig at brute size wearing a breastplate, pauldrons, an iron crown, a cloak and a long sword, with a soul-fire glow in his casting hand. Health is 110× the wave's walker health (curse health included). He uses brute routes and collision, never staggers, and ordinary rage chains don't touch him.
+- **Grave lance (ranged):** at 4.5–32 m with a clear line of sight he raises his arm (0.75 s) and throws a glowing lance at 15 m/s. It hits for 85% of the wave's contact damage if it passes within 0.62 m of you, and walls stop it. Below half health he throws three in a fan.
+- **Gravewarden (summoned tank):** at 75% and 40% health a Gravewarden climbs out of the ground beside him. It's an iron-helmed, stone-plated brute with a tower shield, 4× brute health, slower than a brute and hitting 25% harder. Shots into its shield do a quarter damage.
+- **War cry:** every 15 s (sooner right after a summon), if allies are near, he throws his arms wide and screams. Every undead within 18 m turns red and gets 35% faster and 30% harder-hitting for 10 s.
+- **Enrage:** below 30% health he turns red, moves 30% faster and casts about 50% more often.
+- **Reward:** 5,000 essence × your curse multiplier and a Max Ammo, plus a health bar while he lives. Beating him at your highest unlocked rank unlocks the next one. Beating him at a lower rank pays out but unlocks nothing.
+
 ## Gentler interior lamps (version 129)
 
 Every wing ceiling lamp had the same strength (26) whatever its height. In the ballroom and conservatory, which sit under the second floor, the lamps hang low, about 2.3 m up, so they put roughly three times as much light on the floor as the lamps in the tall rooms. They also blew the wood ceiling just above them out to a hot orange glare.

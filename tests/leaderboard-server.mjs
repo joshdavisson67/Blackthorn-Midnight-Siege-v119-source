@@ -6,6 +6,7 @@ import {join} from 'node:path';
 import {readFileSync} from 'node:fs';
 import {getLeaderboard,submitScore} from '../server/leaderboard.mjs';
 import {open,migrate} from './leaderboard-db.mjs';
+import {MAX_CURSE_RANK} from '../public/game/curse.mjs';
 const url='https://blackthorn.example/api/leaderboard',get=()=>new Request(url);
 const run=(values={})=>({id:crypto.randomUUID(),name:'Josh',score:12000,wave:20,kills:155,duration:615,version:'19',...values});
 const post=data=>new Request(url,{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://blackthorn.example'},body:JSON.stringify(data)});
@@ -21,17 +22,19 @@ test('additive curse migration preserves existing runs and legacy retry IDs; hig
     const cursed=run({name:'Corrupted survivor',score:30000,wave:31,curseRank:6,curseTitle:'Forged title',version:'95'}),result=await(await submitScore(post(cursed),db)).json();assert.equal(result.entry.curse_rank,6);assert.equal(result.entry.curse_title,'Endless Corruption','Title is derived server-side rather than trusting the supplied title');
     await Promise.all([submitScore(post(cursed),db),submitScore(post(cursed),db)]);db.sqlite.close();db=open(path);
     const entries=(await(await getLeaderboard(get(),db)).json()).entries;assert.equal(entries.length,2);assert.equal(entries[0].curse_rank,6);assert.equal(entries[0].curse_title,'Endless Corruption');assert.equal(entries[1].id,old.id);assert.equal((await submitScore(post({...cursed,curseRank:5}),db)).status,409);
-    for(const data of [run({curseRank:-1}),run({curseRank:1.5}),run({curseRank:'1'}),run({curseRank:1,wave:3}),run({curseRank:2,wave:8}),run({curseRank:3,wave:13}),run({curseRank:10000})])assert.equal((await submitScore(post(data),db)).status,400);
+    for(const data of [run({curseRank:-1}),run({curseRank:1.5}),run({curseRank:'1'}),run({curseRank:MAX_CURSE_RANK+1}),run({curseRank:10000})])assert.equal((await submitScore(post(data),db)).status,400);
     for(const [rank,title] of [[1,'The Whispered'],[2,'The Marked'],[3,'The Forsaken'],[4,'The Damned'],[5,"Blackthorn's Chosen"],[6,'Endless Corruption']]){const saved=await(await submitScore(post(run({wave:rank*5,curseRank:rank})),db)).json();assert.equal(saved.entry.curse_title,title);}
   }finally{db.sqlite.close();rmSync(dir,{recursive:true,force:true});}
 });
-test('deaths in the seven-second curse intermission save the earned rank at the cleared wave',async()=>{
+test('a run keeps the curse rank chosen at the start, from its first wave',async()=>{
   const db=open();try{
     migrate(db);
-    for(const [rank,wave] of [[1,4],[2,9],[3,14],[6,29],[10,49]]){
-      const score=run({wave,curseRank:rank,version:'112'}),response=await submitScore(post(score),db);assert.equal(response.status,200);
-      const saved=await response.json();assert(saved.saved);assert.equal(saved.entry.wave,wave);assert.equal(saved.entry.curse_rank,rank);assert.equal((await submitScore(post(score),db)).status,200,'An intermission score retains retry idempotency');assert.equal((await submitScore(post(run({wave,curseRank:rank+1,version:'112'})),db)).status,400,'Ranks beyond the cleared milestone remain invalid');
+    // The rank is picked on the title screen (v130), so even a wave-1 death can carry it.
+    for(const [rank,wave] of [[1,1],[2,3],[3,8],[6,21],[MAX_CURSE_RANK,40]]){
+      const score=run({wave,curseRank:rank,version:'130'}),response=await submitScore(post(score),db);assert.equal(response.status,200);
+      const saved=await response.json();assert(saved.saved);assert.equal(saved.entry.wave,wave);assert.equal(saved.entry.curse_rank,rank);assert.equal((await submitScore(post(score),db)).status,200,'Retries stay idempotent');
     }
+    assert.equal((await submitScore(post(run({wave:5,curseRank:MAX_CURSE_RANK+1,version:'130'})),db)).status,400,'Ranks beyond the ladder are invalid');
     assert.equal((await(await getLeaderboard(get(),db)).json()).entries.length,5,'Only the five actual run IDs are stored');
   }finally{db.sqlite.close();}
 });

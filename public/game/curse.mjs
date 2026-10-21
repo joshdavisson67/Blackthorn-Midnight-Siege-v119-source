@@ -1,7 +1,10 @@
 import {waveConfig} from './core.mjs?v=116';
 import {FERAL,chooseEnemyKind} from './feral.mjs?v=116';
 
-export const CURSE_RULES=Object.freeze({firstMilestone:4,milestoneInterval:5,choiceSeconds:60,decisionDelaySeconds:7,aliveLimit:32,speedPerRank:.15,speedBonusCap:1,rewardPerRank:.25,specialPerRank:.10,specialBonusCap:1,healthPerRank:.20,populationPerRank:.15});
+// The curse is a ladder (v130): each run is played at one chosen rank, and
+// defeating Sir Blackthorn at the highest unlocked rank unlocks the next.
+export const MAX_CURSE_RANK=25;
+export const CURSE_RULES=Object.freeze({aliveLimit:32,speedPerRank:.15,speedBonusCap:1,rewardPerRank:.25,specialPerRank:.10,specialBonusCap:1,healthPerRank:.20,populationPerRank:.15});
 const titles=Object.freeze(['Uncursed','The Whispered','The Marked','The Forsaken','The Damned',"Blackthorn's Chosen"]);
 export function curseTitle(rank=0){return titles[rank]??'Endless Corruption';}
 export function curseModifiers(rank=0){
@@ -9,9 +12,7 @@ export function curseModifiers(rank=0){
 }
 export function curseWaveConfig(wave,rank=0){const base=waveConfig(wave),m=curseModifiers(rank);return {...base,count:Math.ceil(base.count*m.population),health:base.health*m.health,speed:base.speed*m.speed};}
 export function curseReward(base,rank=0){return Math.round(base*(1+rank*CURSE_RULES.rewardPerRank));}
-// The rank is earned at the cleared milestone, before the next wave starts.
-// A death during the post-choice countdown must retain a valid rank and title.
-export function maxCurseRank(wave){return Math.max(0,Math.floor((wave-CURSE_RULES.firstMilestone)/CURSE_RULES.milestoneInterval)+1);}
+export function clampCurseRank(rank){return Number.isSafeInteger(rank)?Math.min(MAX_CURSE_RANK,Math.max(0,rank)):0;}
 
 // The existing seven/five/twenty-slot schedule repeats every 140 spawns.
 // Convert only ordinary walkers; keep every special's unlock and relative mix.
@@ -38,14 +39,30 @@ export function chooseCurseEnemyKind(wave,slot,roll,rank=0){
   return kinds.at(-1)[0];
 }
 
-export function createCurse(){
-  let rank=0,lastMilestone=0,pending=false,timeLeft=0;
+// One rank for the whole run, fixed when the run starts.
+export function createCurse(initial=0){
+  let rank=clampCurseRank(initial);
   return {
-    offer(wave){if(pending||wave<CURSE_RULES.firstMilestone||(wave-CURSE_RULES.firstMilestone)%CURSE_RULES.milestoneInterval||wave<=lastMilestone)return false;lastMilestone=wave;pending=true;timeLeft=CURSE_RULES.choiceSeconds;return true;},
-    update(dt){if(!pending||dt<=0)return false;timeLeft=Math.max(0,timeLeft-dt);return timeLeft<=1e-9;},
-    resolve(choice){if(!pending||!['embrace','resist','timeout'].includes(choice))return false;if(choice==='embrace')rank++;pending=false;timeLeft=0;return true;},
-    cancel(){pending=false;timeLeft=0;},
-    reset(){rank=lastMilestone=0;pending=false;timeLeft=0;},
-    get rank(){return rank;},get title(){return curseTitle(rank);},get pending(){return pending;},get timeLeft(){return timeLeft;},get lastMilestone(){return lastMilestone;},
+    setRank(next){rank=clampCurseRank(next);return rank;},
+    get rank(){return rank;},get title(){return curseTitle(rank);},
+  };
+}
+
+// Unlocked and selected ranks, remembered on this device.
+export const CURSE_LADDER_KEYS=Object.freeze({unlocked:'blackthorn-curse-unlocked',selected:'blackthorn-curse-selected'});
+export function createCurseLadder({storage}={}){
+  if(storage===undefined){try{storage=globalThis.localStorage;}catch{storage=null;}}
+  const read=key=>{try{const v=Number(storage?.getItem(key));return Number.isSafeInteger(v)?v:0;}catch{return 0;}};
+  const write=(key,value)=>{try{storage?.setItem(key,String(value));}catch{}};
+  let unlocked=clampCurseRank(read(CURSE_LADDER_KEYS.unlocked)),selected=Math.min(unlocked,clampCurseRank(read(CURSE_LADDER_KEYS.selected)));
+  return {
+    get unlocked(){return unlocked;},get selected(){return selected;},
+    select(rank){selected=Math.min(unlocked,clampCurseRank(rank));write(CURSE_LADDER_KEYS.selected,selected);return selected;},
+    // Beating Sir Blackthorn at the highest unlocked rank opens the next one.
+    // Returns the newly unlocked rank, or null when nothing new opened.
+    victory(rank){
+      if(rank!==unlocked||unlocked>=MAX_CURSE_RANK)return null;
+      unlocked++;write(CURSE_LADDER_KEYS.unlocked,unlocked);return unlocked;
+    }
   };
 }

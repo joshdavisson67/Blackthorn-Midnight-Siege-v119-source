@@ -415,3 +415,22 @@ body.touch-playing #interaction{bottom:auto;top:58%;font-size:11px}
 #controllerStatus.inUse{color:var(--gold)}
 .guideSubheading{margin:18px 0 8px;font-size:12px;letter-spacing:2px;color:var(--gold)}
 body.pad-playing{cursor:none}
+
+/* Curse ladder (v130): the rank for the whole run is chosen on the title screen. */
+.menuCurse{display:flex;align-items:center;gap:12px;width:min(370px,100%);margin-top:10px;text-align:left;padding:10px 12px;border:1px solid #7a2f2a66;background:linear-gradient(90deg,#2a0f0fcc,#0c151dcc)}
+.menuCurse[data-rank="0"]{border-color:#44504c88;background:#0c151dcc}
+.menuCurseSeal{flex:none;opacity:.85}
+.menuCurse[data-rank="0"] .menuCurseSeal{opacity:.4;filter:grayscale(1)}
+.menuCurseBody{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}
+.menuCurseBody label{font-size:8px;letter-spacing:2.5px;color:#c9776b}
+.menuCurseBody select{width:100%;font-size:11px;letter-spacing:1.5px;padding:6px 8px;color:var(--ivory);background:#0a1116;border-color:#6b3a33}
+#curseRankInfo{font-size:9px;line-height:1.5;letter-spacing:.5px;color:#a8b3b0}
+/* Sir Blackthorn's health bar. */
+#bossHud{position:absolute;top:66px;left:50%;transform:translateX(-50%);width:min(560px,70vw);text-align:center;text-shadow:0 2px 6px #000}
+#bossHud small{display:block;font:600 13px 'Barlow Condensed',Impact,sans-serif;letter-spacing:4px;color:#e5c88d}
+.bossTrack{height:8px;margin:7px 0 5px;border:1px solid #c9a76a88;background:#120a0acc;box-shadow:0 0 18px #6d1c1455}
+#bossBar{display:block;height:100%;width:100%;background:linear-gradient(90deg,#7c1d16,#c4382b 60%,#e4643f);transition:width .15s}
+#bossHud.enraged #bossBar{background:linear-gradient(90deg,#b11f13,#ff3d22);box-shadow:0 0 10px #ff3d2299}
+#bossState{font-size:9px;letter-spacing:2px;color:#c9b8a0}
+@media(max-height:850px){#menu .menuCurse{padding:7px 10px}#menu .menuCurse .menuCurseSeal{width:30px;height:30px}}
+@media(max-width:750px){#bossHud{top:34px;width:58vw}#bossHud small{font-size:10px;letter-spacing:2.5px}.menuCurse{margin-top:8px;padding:7px 9px}.menuCurseSeal{width:28px;height:28px}#curseRankInfo{display:none}}

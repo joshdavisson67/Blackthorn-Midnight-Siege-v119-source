@@ -9,7 +9,7 @@ import {drawStationMarker} from '../public/game/station-models.mjs';
 export function verifyRotundaBell(qa,frames,listeners,elements){
   const state=qa.get(),bell=state.rotundaBell,station=bell.station;
   assert.equal(roomAt(ROTUNDA_BELL.x,ROTUNDA_BELL.z).id,'rotunda');
-  assert.equal(state.interactables.filter(s=>s.type==='bell').length,1);
+  assert.equal(state.interactables.filter(s=>s.type==='bell').length,0,'The bell is a landmark, not a curse choice (v130)');
   assert.equal(station.y,0);assert.equal(station.price,0);assert(bell.group.parent);
   assert(bell.bodyBounds.getSize(new T.Vector3()).x>2.6,'The bell is a large fixture rather than a small prop');
   assert(bell.bodyBounds.min.y>BRUTE.height,'Large brutes retain headroom under the bell');
@@ -29,16 +29,10 @@ export function verifyRotundaBell(qa,frames,listeners,elements){
   assert(ray.intersectObject(shell,false)[0].point.y>ROTUNDA_BELL.lipY+1.7);
 
   qa.start();qa.holdSpawns();qa.setPlayer(station.x,station.z+.6);qa.setAim(0,0);frames(2);
-  assert(elements.get('interaction').innerHTML.includes('GREAT ROTUNDA BELL'));
-  assert(elements.get('interaction').innerHTML.includes('DORMANT'));
-  assert(!elements.get('interaction').innerHTML.includes('FREE'));
-  const snapshot=()=>{const s=qa.get();return {points:s.points,totalScore:s.totalScore,health:s.health,armor:s.armor,wave:s.wave,toSpawn:s.toSpawn,kills:s.kills,weapon:s.weapon,grenades:s.grenades,doubleTime:s.doubleTime,grenadeTime:s.grenadeTime,inventory:structuredClone(s.inventory),used:station.used};};
-  const before=snapshot();qa.interact();assert.deepEqual(snapshot(),before,'Dormant interaction has no cost, ability, wave trigger or reward');
-  listeners.keydown({code:'KeyE',repeat:false});assert.deepEqual(snapshot(),before,'The real E input reaches the dormant bell safely');
-  listeners.keyup({code:'KeyE'});
-  qa.setPlayer(station.x,station.z+.6,4.3);frames(2);assert(!elements.get('interaction').innerHTML.includes('GREAT ROTUNDA BELL'),'Interaction remains on the ground floor');
-  let marker;drawStationMarker({fillRect(){},strokeRect(){},fillText(text){marker=text;}},station,0,0);assert.equal(marker,'BL','The map uses a bell marker rather than a power-up icon');
-
+  assert(!elements.get('interaction').innerHTML.includes('GREAT ROTUNDA BELL'),'No prompt appears at the rope');
+  const snapshot=()=>{const s=qa.get();return {points:s.points,totalScore:s.totalScore,health:s.health,wave:s.wave,toSpawn:s.toSpawn,mode:s.mode,rank:s.curse.rank};};
+  const before=snapshot();qa.interact();listeners.keydown({code:'KeyE',repeat:false});listeners.keyup({code:'KeyE'});
+  assert.deepEqual(snapshot(),before,'E at the rope does nothing');
   // Standing movement, a real jump and tall enemies all keep the central lane.
   for(const height of [1.8,BRUTE.height])for(let z=ROTUNDA_BELL.z-4;z<=ROTUNDA_BELL.z+4;z+=.25)assert(!isBlocked(ROTUNDA_BELL.x,z,.58,state.colliders,undefined,0,height));
   qa.setPlayer(ROTUNDA_BELL.x,ROTUNDA_BELL.z+3);qa.setAim(0,0);qa.setKeys(['KeyW']);frames(105);qa.setKeys([]);
@@ -46,6 +40,5 @@ export function verifyRotundaBell(qa,frames,listeners,elements){
   qa.setPlayer(ROTUNDA_BELL.x,ROTUNDA_BELL.z);listeners.keydown({code:'Space',preventDefault(){}});let peak=0;
   for(let i=0;i<70;i++){frames(1);peak=Math.max(peak,qa.get().player.y+1.8);}
   listeners.keyup({code:'Space'});assert(peak<bell.bodyBounds.min.y);assert.equal(qa.get().player.y,0);assert(qa.get().grounded);
-  qa.start();qa.holdSpawns();qa.setPlayer(station.x,station.z+.6);frames(2);assert(elements.get('interaction').innerHTML.includes('DORMANT'),'New runs keep the fixture dormant');
-  console.log(`PASS: reachable rotunda bell with dormant off-milestone interactions, hollow outward-facing shell, dome attachment, clear ground/jump/brute routes, map marker and restart; ${meshes} static meshes / ${triangles} triangles / no new textures or lights.`);qa.start();
+  console.log(`PASS: rotunda bell landmark with no interaction, hollow outward-facing shell, dome attachment, clear ground/jump/brute routes, and restart; ${meshes} static meshes / ${triangles} triangles / no new textures or lights.`);qa.start();
 }

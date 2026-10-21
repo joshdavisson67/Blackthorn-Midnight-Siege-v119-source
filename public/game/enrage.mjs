@@ -1,7 +1,8 @@
 export const ENRAGE=Object.freeze({radius:6,chance:.15,speedMultiplier:2,damageMultiplier:1.25});
 
 export function enrageEnemy(enemy,onEnrage=()=>{}){
-  if(enemy.dead||enemy.enraged)return false;
+  // Sir Blackthorn and his Gravewardens have their own fury (v130).
+  if(enemy.dead||enemy.enraged||enemy.noEnrage)return false;
   enemy.enraged=true;enemy.speed*=ENRAGE.speedMultiplier;onEnrage(enemy);return true;
 }
 

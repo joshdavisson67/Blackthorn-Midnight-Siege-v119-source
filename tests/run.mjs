@@ -217,6 +217,8 @@ const {verifyGraveyard}=await import("./graveyard.mjs");
 verifyGraveyard(qa,frames,listeners,elements);
 const {verifyNuke}=await import('./nuke.mjs');
 verifyNuke(qa,frames,listeners,elements);
+const {verifyBlackthorn}=await import('./blackthorn.mjs');
+verifyBlackthorn(qa,frames,listeners,elements);
 
 const {verifyGrounds}=await import('./grounds.mjs');
 verifyGrounds(qa);

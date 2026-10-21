@@ -25,17 +25,13 @@ export function verifyPauseCurse(qa,frames,listeners,elements,gameCanvas){
   const pauseWithEsc=()=>listeners.keydown({code:'Escape',preventDefault(){}});
   const resume=()=>{elements.get('resume').onclick();assert.equal(qa.get().mode,'playing');assert(pause.classList.contains('hidden'));assert.equal(document.pointerLockElement,gameCanvas);};
   qa.start({capture:false});readout(0);assert.equal(elements.get('pauseCurseTitle').textContent,'Uncursed');resume();
-  qa.setHealth(100000);
-  const bell=qa.get().rotundaBell.station;
-  function choose(milestone,choice){
-    for(let wave=qa.get().wave;wave<milestone;wave++)qa.startWave();
-    qa.holdSpawns();qa.clearQueuedSpawns();frames(1);
-    assert(qa.get().curse.pending);qa.setPlayer(bell.x,bell.z+.65);qa.interact();
-    assert.equal(qa.get().mode,'curse');
-    elements.get(choice==='embrace'?'curseEmbrace':'curseResist').onclick();
-    pauseWithEsc();assert.equal(qa.get().mode,'paused');
-  }
-  choose(4,'embrace');readout(1);assert.equal(elements.get('pauseCurseTitle').textContent,'The Whispered');
+  // The rank is chosen on the title screen for the whole run (v130).
+  const ladder=qa.get().curseLadder,select=elements.get('curseRank');
+  while(ladder.unlocked<11)ladder.victory(ladder.unlocked);qa.renderCurseMenu();
+  function play(rank){select.value=String(rank);select.onchange();qa.start({capture:false});readout(rank);}
+  play(1);assert.equal(elements.get('pauseCurseTitle').textContent,'The Whispered');
+  assert(elements.get('pauseCurseNote').textContent.includes('whole run'));
+  resume();qa.holdSpawns();pauseWithEsc();assert.equal(qa.get().mode,'paused');
   const state=qa.get(),frozenDelay=state.waveDelay,frozenTime=state.runTime,ammo=state.inventory.glock.ammo;
   frames(1,65000);assert.equal(qa.get().waveDelay,frozenDelay);assert.equal(qa.get().runTime,frozenTime);
   assert.equal(qa.get().inventory.glock.ammo,ammo,'Reading stats cannot advance combat');readout(1);
@@ -43,14 +39,13 @@ export function verifyPauseCurse(qa,frames,listeners,elements,gameCanvas){
   gameCanvas.requestPointerLock=()=>{throw new Error('Capture denied in pause stats test');};
   elements.get('resume').onclick();assert.equal(qa.get().mode,'paused');readout(1);
   gameCanvas.requestPointerLock=acquire;resume();
-  choose(9,'resist');readout(1);resume();
   for(let rank=2;rank<=11;rank++){
-    choose(4+rank*5,'embrace');readout(rank);
+    play(rank);
     if(rank===3)assert.equal(elements.get('pauseCurseTitle').textContent,'The Forsaken');
     if(rank>=6)assert.equal(elements.get('pauseCurseTitle').textContent,'Endless Corruption');
     resume();
   }
-  qa.hurtPlayer(200000,qa.get().player);assert.equal(qa.get().mode,'dead');readout(11);
-  qa.start({capture:false});readout(0);resume();qa.start();
-  console.log('PASS: pause curse rank/title and five current modifiers from Uncursed through Rank 11, real bell choices, resist, speed/special caps, reset/death/capture retry, unchanged paused timers, cached stat nodes and restored mouse lock.');
+  qa.setHealth(100);qa.hurtPlayer(200000,qa.get().player);assert.equal(qa.get().mode,'dead');readout(11);
+  select.value='0';select.onchange();qa.start({capture:false});readout(0);assert(elements.get('pauseCurseNote').textContent.includes('unlock the first rank'));resume();qa.start();
+  console.log('PASS: pause curse rank/title and five current modifiers from Uncursed through Rank 11, title-screen rank choice, speed/special caps, reset/death/capture retry, unchanged paused timers, cached stat nodes and restored mouse lock.');
 }

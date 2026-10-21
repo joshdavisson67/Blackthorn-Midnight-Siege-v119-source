@@ -50,11 +50,24 @@ export function buildGraveyard({world,M,earth,box,mesh,cylinder,label,colliders,
   const gate={x,z:frontZ,w:doorWidth,d:.20,minY:0,maxY:3,disabled:false};colliders.push(gate);
   // The room itself is explorable: side passages circle a sculpted sarcophagus.
   const tomb=box(SARCOPHAGUS.x,.40,SARCOPHAGUS.z,2.25,.8,3.1,M.stone);solidMeshes.push(tomb);
-  const lid=box(SARCOPHAGUS.x,.90,SARCOPHAGUS.z,SARCOPHAGUS.w,.20,SARCOPHAGUS.d,M.trim);solidMeshes.push(lid);
-  const lidInset=mesh(new T.PlaneGeometry(1.9,2.75),M.stone,[x,1.004,SARCOPHAGUS.z]);lidInset.rotation.x=-Math.PI/2;
+  // The lid is its own moving group: Sir Blackthorn slides it off (v130).
+  // A dark well beneath it reads as the hollow tomb once it is open.
+  const well=mesh(new T.PlaneGeometry(1.95,2.8),new T.MeshBasicMaterial({color:0x050607}),[SARCOPHAGUS.x,.812,SARCOPHAGUS.z]);well.rotation.x=-Math.PI/2;well.castShadow=false;
+  const lidGroup=new T.Group();lidGroup.name='Sarcophagus lid';lidGroup.position.set(SARCOPHAGUS.x,0,SARCOPHAGUS.z);world.add(lidGroup);
+  const lid=box(0,.90,0,SARCOPHAGUS.w,.20,SARCOPHAGUS.d,M.trim,lidGroup);solidMeshes.push(lid);
+  const lidInset=mesh(new T.PlaneGeometry(1.9,2.75),M.stone,[0,1.004,0],null,lidGroup);lidInset.rotation.x=-Math.PI/2;
   colliders.push({x:SARCOPHAGUS.x,z:SARCOPHAGUS.z,w:SARCOPHAGUS.w,d:SARCOPHAGUS.d,minY:0,maxY:SARCOPHAGUS.top});
   for(const side of [-1,1])for(const zz of [SARCOPHAGUS.z-1.2,SARCOPHAGUS.z+1.2])box(x+side*.8,.45,zz,.12,.6,.06,M.gold);
-  box(x,1.024,SARCOPHAGUS.z,.08,.026,1.8,M.gold);box(x,1.025,SARCOPHAGUS.z+.35,.64,.026,.08,M.gold);
+  box(0,1.024,0,.08,.026,1.8,M.gold,lidGroup);box(0,1.025,.35,.64,.026,.08,M.gold,lidGroup);
+  lidGroup.traverse(o=>{o.userData.dynamic=true;});
+  // 0 closed → 1 shoved back off the tomb, its far end resting on the floor
+  // behind it. That dead-end strip becomes solid so nobody walks through it.
+  const lidRest={x:SARCOPHAGUS.x,z:SARCOPHAGUS.z-SARCOPHAGUS.d/2-.95,w:SARCOPHAGUS.w,d:1.9,minY:0,maxY:1.05,disabled:true};colliders.push(lidRest);
+  function openLid(progress){
+    const p=Math.min(1,Math.max(0,progress)),slide=p*p*(3-2*p),tip=Math.max(0,(p-.5)/.5);
+    lidGroup.position.set(SARCOPHAGUS.x,tip*.12,SARCOPHAGUS.z-slide*1.45);lidGroup.rotation.set(-tip*.32,0,0);lidGroup.updateMatrixWorld(true);
+    lidRest.disabled=p<.5;
+  }
   for(const xx of [x-3.4,x+3.4]){box(xx,1.8,z-1,.18,.58,.3,iron);box(xx+(xx<x?.10:-.10),1.8,z-1,.10,.40,.19,fixtures);}
   const epitaph=mesh(new T.PlaneGeometry(2.6,.62),label('THE HOUSE REMEMBERS\nTHOSE WHO DO NOT REST','#bdbbae',1024,{width:2.6,height:.62,kind:'memorial',maxLines:2}),[x,2.25,z-d/2+.26]);
   const station={type:'mausoleumDoor',x,z:frontZ,y:0,price:0,name:'BLACKTHORN MAUSOLEUM',hex:'#a6cbd7'};interactables.push(station);
@@ -62,7 +75,7 @@ export function buildGraveyard({world,M,earth,box,mesh,cylinder,label,colliders,
   let open=false,progress=0;
   function unlock(){if(open)return false;open=true;gate.disabled=true;lock.visible=false;unlockSign.visible=false;nuke.unlock();return true;}
   function update(dt){nuke.update(dt);if(!open||progress===1)return;progress=Math.min(1,progress+dt/1.6);const eased=progress*progress*(3-2*progress);for(const {hinge,side} of doors){hinge.rotation.y=-side*eased*1.72;hinge.updateMatrixWorld(true);}}
-  function reset(){open=false;progress=0;gate.disabled=false;lock.visible=true;unlockSign.visible=true;nuke.reset();for(const {hinge} of doors){hinge.rotation.y=0;hinge.updateMatrixWorld(true);}}
-  return {graves,doors,gate,station,nuke,unlock,update,reset,get open(){return open;},get progress(){return progress;}};
+  function reset(){open=false;progress=0;gate.disabled=false;lock.visible=true;unlockSign.visible=true;nuke.reset();openLid(0);for(const {hinge} of doors){hinge.rotation.y=0;hinge.updateMatrixWorld(true);}}
+  return {graves,doors,gate,station,nuke,lidGroup,openLid,unlock,update,reset,get open(){return open;},get progress(){return progress;}};
 }
 export function drawGraveyardMap(c,px,pz){c.fillStyle='#253e37';c.fillRect(px(54),pz(-24),26*(px(1)-px(0)),42*(pz(1)-pz(0)));c.strokeStyle='#7a8979';c.lineWidth=1;c.strokeRect(px(54),pz(-24),26*(px(1)-px(0)),42*(pz(1)-pz(0)));c.strokeStyle='#a99d77';c.lineWidth=4;c.beginPath();c.moveTo(px(54),pz(6));c.lineTo(px(70),pz(6));c.lineTo(px(70),pz(-9.5));c.stroke();c.fillStyle='#5e7170';c.fillRect(px(66),pz(-18.5),8*(px(1)-px(0)),9*(pz(1)-pz(0)));for(const x of [59,64,76])for(const z of [-19,-12,-5,1,12]){if(x===64&&z===-12)continue;c.fillStyle='#a5ada4';c.fillRect(px(x)-2,pz(z)-3,4,6);}c.fillStyle='#c6cfb3';c.textAlign='center';c.font='11px Arial';c.fillText('CEMETERY',px(67),pz(15));}

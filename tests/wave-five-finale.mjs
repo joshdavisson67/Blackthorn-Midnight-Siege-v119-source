@@ -20,7 +20,6 @@ export function verifyWaveFiveFinale(qa,frames,listeners,elements){
   qa.damageEnemy(ordinary.at(-1),100000);const beforeFinale=qa.get().points;
   frames(8);let s=qa.get();
   assert.equal(s.wave,5);assert.equal(s.frenzyWave,5);assert.equal(s.waveDelay,0);
-  assert(!s.curse.pending,'The bell does not interrupt the wave-five frenzy');
   assert.equal(s.toSpawn+living().length,17);assert.equal(s.points,beforeFinale,'No wave bonus before the finale');
   assert(elements.get('banner').textContent.includes('FRENZIED FINALE'));
   assert(!elements.get('frenzyHud').classList.contains('hidden'));
@@ -54,10 +53,10 @@ export function verifyWaveFiveFinale(qa,frames,listeners,elements){
   assert.equal(qa.get().waveFiveFinale.enemies.length,17,'The finale is not repeated while its last walker lives');
   qa.damageEnemy(walkers.at(-1),100000);const beforeClear=qa.get().points;frames(1);
   assert.equal(qa.get().points,beforeClear+550);assert.equal(qa.get().frenzyWave,0);assert(qa.get().waveDelay>0);
-  assert(!qa.get().curse.pending,'The shifted bell schedule no longer follows the wave-five finale');assert.equal(qa.get().waveDelay,12);assert(elements.get('curseNotice').classList.contains('hidden'));assert(elements.get('waveState').textContent.startsWith('NEXT WAVE IN 12s'));
+  assert.equal(qa.get().waveDelay,12);assert(elements.get('waveState').textContent.startsWith('NEXT WAVE IN 12s'));
   frames(8);assert.equal(qa.get().points,beforeClear+550,'Wave-clear reward is paid once');
   assert(elements.get('frenzyHud').classList.contains('hidden'));assert(elements.get('banner').textContent.includes('FINALE CLEARED'));
-  assert(!qa.resolveCurseChoice('resist'),'No extra bell choice can bypass wave-five restock');frames(Math.ceil(qa.get().waveDelay*60)+1);assert.equal(qa.get().wave,6);assert.equal(qa.get().waveFiveFinale,null);assert.equal(qa.get().frenzyWave,0);
+  frames(Math.ceil(qa.get().waveDelay*60)+1);assert.equal(qa.get().wave,6);assert.equal(qa.get().waveFiveFinale,null);assert.equal(qa.get().frenzyWave,0);
   console.log('PASS: wave-five finale triggers only after the ordinary wave, spawns exactly 13 walkers and four brutes at frenzy pace, pauses queued/live enemies, updates counters and clears only after all 17 die with one bonus.');
 
   const blocked=prepare(5,UPPER_Y);for(const e of blocked)qa.damageEnemy(e,100000);
@@ -76,9 +75,8 @@ export function verifyWaveFiveFinale(qa,frames,listeners,elements){
   const nextRun=prepare();for(const e of nextRun)qa.damageEnemy(e,100000);frames(1);
   assert.equal(qa.get().toSpawn+living().length,17,'A new run has its own complete finale');
   const otherWave=prepare(4);for(const e of otherWave)qa.damageEnemy(e,100000);frames(1);
-  assert.equal(qa.get().waveFiveFinale,null);assert.equal(qa.get().frenzyWave,0);assert.equal(qa.get().waveDelay,0);
-  assert(qa.get().curse.pending,'Clearing the full wave-four roster immediately offers the curse');assert.equal(qa.get().curse.timeLeft,60);
-  assert(qa.resolveCurseChoice('embrace'));assert.equal(qa.get().wave,4);assert.equal(qa.get().waveDelay,7);assert.equal(qa.get().curse.rank,1);frames(419);assert.equal(qa.get().wave,4);frames(1);assert.equal(qa.get().wave,5);
-  qa.clearQueuedSpawns();frames(1);assert.equal(qa.get().toSpawn+living().length,17,'The shifted curse choice preserves the entire wave-five finale');assert(!qa.get().curse.pending);qa.start();
-  console.log('PASS: blocked finale spawns retain all 17 slots and four brute slots, retry on restored upstairs routes, reset with new runs, and the immediate wave-four curse choice preserves the next wave’s full finale.');
+  assert.equal(qa.get().waveFiveFinale,null);assert.equal(qa.get().frenzyWave,0);assert.equal(qa.get().waveDelay,12,'Wave four clears into the normal restock');
+  frames(719);assert.equal(qa.get().wave,4);frames(2);assert.equal(qa.get().wave,5);
+  qa.clearQueuedSpawns();frames(1);assert.equal(qa.get().toSpawn+living().length,17,'Wave four always leads into the full wave-five finale');qa.start();
+  console.log('PASS: blocked finale spawns retain all 17 slots and four brute slots, retry on restored upstairs routes, reset with new runs, and the normal wave-four restock leads into the full finale.');
 }
