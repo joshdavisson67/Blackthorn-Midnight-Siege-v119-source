@@ -27,6 +27,14 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Gentler interior lamps (version 129)
+
+Every wing ceiling lamp had the same strength (26) whatever its height. In the ballroom and conservatory, which sit under the second floor, the lamps hang low, about 2.3 m up, so they put roughly three times as much light on the floor as the lamps in the tall rooms. They also blew the wood ceiling just above them out to a hot orange glare.
+
+Wing lamps are now sized by their mounting height, so the floor beneath every one gets the same gentle light. The light source also moved up into the glowing globe instead of hanging below it. Low lamps drop from 26 to about 8 and high lamps from 26 to about 21. Second-floor and cellar lamps, wall sconces and fireplaces are unchanged.
+
+Interior oak is also a little rougher (0.76–0.98 instead of 0.66–0.96). Lamps now give it a soft sheen rather than a bright glossy streak at low viewing angles.
+
 ## Controller support (version 128)
 
 Blackthorn plays on a game controller through the browser Gamepad API (standard layout: Xbox, PlayStation and Switch Pro controllers in current browsers). `gamepad-controls.mjs` polls the controller once per frame.
