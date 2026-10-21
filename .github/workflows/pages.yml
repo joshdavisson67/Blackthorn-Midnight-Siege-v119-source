@@ -1,6 +1,6 @@
 # Publishes the playable game (public/game) to GitHub Pages whenever main
-# changes. The shared leaderboard needs the Cloudflare server and is not
-# available on Pages; the game itself is fully static.
+# changes. The game is fully static; on Pages its shared leaderboard is
+# stored in Supabase (see supabase/leaderboard.sql).
 name: Publish game to GitHub Pages
 
 on:

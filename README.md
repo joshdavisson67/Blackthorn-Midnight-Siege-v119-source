@@ -4,7 +4,7 @@ An original, single-player, first-person zombie survival game for desktop browse
 
 ## Play
 
-**Play in your browser:** https://joshdavisson67.github.io/Blackthorn-Midnight-Siege-v119-source/ (published automatically from `main` by `.github/workflows/pages.yml`; the shared leaderboard is not available on this copy).
+**Play in your browser:** https://joshdavisson67.github.io/Blackthorn-Midnight-Siege-v119-source/ (published automatically from `main` by `.github/workflows/pages.yml`). This copy's shared leaderboard is stored in Supabase; see below.
 
 
 Enter the estate to capture the mouse. WASD moves, mouse looks, left click fires, right click aims, Shift sprints, Space jumps, R reloads, G throws a grenade, F toggles the flashlight, E buys or interacts, 1/2/3 switch owned weapons, M opens the estate map and pauses survival, and Escape releases the mouse and pauses. Click Resume to recapture the mouse. Play begins only after the browser confirms mouse lock; permission denial leaves the run safely paused with a retry control and browser permission guidance. Escape never attempts to recapture the cursor. Closing the map with Escape returns to pause; clicking Close or pressing M attempts capture before resuming.
@@ -155,6 +155,8 @@ Cellar regression checks cover the wave-10 gate, two moving leaves, real W/S sta
 Graveyard checks verify the actual keyboard entrance, physically walkable exit, local spawn reachability, cemetery bounds, map use, a locked mausoleum throughout wave 20, natural wave completion/unlock, animated doors, immediate navigation refresh, chamber entry/exit, sarcophagus collision, ceiling clearance, two-way zombie pursuit and fresh-run reset. The existing cellar, dog, station, scoring and upstairs behavior remains covered by the gameplay suite. Browser screenshots and rendering remain unverified.
 
 ## Shared public leaderboard (version 38)
+
+**GitHub Pages (v132).** Pages serves only static files, so on `*.github.io` the same leaderboard UI talks to Supabase instead of `/api/leaderboard` (`public/game/leaderboard-supabase.mjs`). The database setup is `supabase/leaderboard.sql`: run it once in the Supabase SQL Editor (it is safe to re-run and never deletes scores). Players have no direct table access; the publishable key can only call `get_leaderboard()` and `submit_score(run)`, which apply the same name, number, curse-rank and run-UUID retry rules as `server/leaderboard.mjs`. The Pages board and the Cloudflare Site board are separate.
 
 The main menu and pause screen open the shared top-50 leaderboard. Dying opens the board with an optional display-name form and an immutable snapshot of total essence earned, wave, kills and survival time. Spending essence does not reduce the submitted score. Ranking uses score, then wave, then kills, with earlier submissions breaking remaining ties. Names are displayed as text. Submissions use bound SQL parameters, strict size/type limits and same-origin browser requests. Each completed run has a UUID; retries of an identical submission return its existing row, while conflicting reuse is rejected. This is a friendly leaderboard for the browser game, not server-authoritative anti-cheat.
 

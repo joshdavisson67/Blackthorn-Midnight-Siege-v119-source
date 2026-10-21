@@ -1,6 +1,7 @@
 const PENDING_KEY='blackthorn-leaderboard-pending-v1',QUEUE_KEY='blackthorn-leaderboard-queue-v1',NAME_KEY='blackthorn-leaderboard-name';
-import {CURRENT_VERSION} from './version.mjs?v=131';
+import {CURRENT_VERSION} from './version.mjs?v=132';
 import {curseTitle} from './curse.mjs?v=130';
+import {usesSupabase,supabaseFetcher} from './leaderboard-supabase.mjs?v=132';
 export const GAME_VERSION=String(CURRENT_VERSION);
 export const REFRESH_INTERVAL=15000;
 const formatTime=seconds=>`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;
@@ -12,7 +13,8 @@ function confirmedScore(data,submission){
     entry.name===cleanName(submission.name)&&['score','wave','kills','duration','version'].every(key=>entry[key]===submission[key])&&
     (entry.curse_rank??entry.curseRank??0)===(submission.curseRank??0);
 }
-export function createLeaderboard({document,fetcher=(...args)=>fetch(...args),storage,onOpen=()=>{},onNewRun=()=>{},setTimer=globalThis.setTimeout,clearTimer=globalThis.clearTimeout,requestTimeoutMs=10000}){
+// GitHub Pages has no /api/leaderboard, so scores go to Supabase there.
+export function createLeaderboard({document,fetcher=usesSupabase()?supabaseFetcher():(...args)=>fetch(...args),storage,onOpen=()=>{},onNewRun=()=>{},setTimer=globalThis.setTimeout,clearTimer=globalThis.clearTimeout,requestTimeoutMs=10000}){
   if(storage===undefined){try{storage=globalThis.localStorage;}catch{storage=null;}}
   const el=id=>document.getElementById(id),modal=el('leaderboard'),form=el('scoreForm'),name=el('leaderboardName'),submit=el('leaderboardSubmit'),message=el('scoreSaveStatus'),body=el('leaderboardRows'),listStatus=el('leaderboardStatus'),picker=el('pendingRunPicker');
   const read=key=>{try{return storage?.getItem(key);}catch{return null;}},write=(key,value)=>{try{if(!storage)return false;if(value===null)storage.removeItem(key);else storage.setItem(key,value);return true;}catch{return false;}};
