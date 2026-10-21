@@ -42,9 +42,7 @@ export function verifyNuke(qa,frames,listeners,elements){
   assert(!s.used&&!walker.dead);assert.equal(qa.get().points,20000,'The console cannot be triggered through an exterior tomb wall');
   qa.setPlayer(s.x-1.3,s.z);qa.setPoints(19999);frames(1);assert(elements.get('interaction').innerHTML.includes('20,000 ESSENCE'));
   qa.interact();assert.equal(qa.get().points,19999);assert(!s.used&&!walker.dead);assert.equal(elements.get('toast').textContent,'NEED 1 MORE ESSENCE');
-  qa.damageEnemy(walker,100000);qa.setPoints(20000);qa.interact();
-  assert(!s.used);assert.equal(qa.get().points,20000,'An empty estate does not waste the charge');
-  assert(elements.get('toast').textContent.includes('NUKE REMAINS ARMED'));
+  qa.damageEnemy(walker,100000);qa.setPoints(20000);
   const victims=[
     qa.makeZombie(-20,-60),
     qa.makeZombie(20,-60,true),
@@ -65,6 +63,7 @@ export function verifyNuke(qa,frames,listeners,elements){
   assert.equal(qa.get().health,health);assert.equal(qa.get().armor,armor,'Atomic purge damages enemies only');
   assert(device.parts.find(p=>p.name==='Spent display').visible);assert(!device.parts.find(p=>p.name==='Armed display').visible);
   assert(qa.get().nukeFlashTime>0);assert(elements.get('toast').textContent.includes('+360 ESSENCE'));
+  assert.equal(qa.get().boss.stage,'waking','Detonation wakes Sir Blackthorn');
   const late=qa.makeZombie(-10,20),after=qa.get();qa.interact();assert(!qa.activateMausoleumNuke());
   assert.equal(qa.get().points,after.points);assert.equal(qa.get().totalScore,after.totalScore);assert.equal(qa.get().kills,after.kills);assert(!late.dead,'Later spawns cannot receive a second detonation');
   frames(100);assert.equal(qa.get().nukeFlashTime,0);assert.equal(Number(elements.get('nukeFlash').style.opacity),0);
@@ -74,6 +73,9 @@ export function verifyNuke(qa,frames,listeners,elements){
   qa.start();assert(s.locked&&!s.used);assert(!device.group.visible&&device.collider.disabled);assert.equal(qa.get().nukeFlashTime,0);
   assert(device.parts.every((p,i)=>p.geometry===geometry[i]&&p.material===materials[i]),'Fresh runs reuse the exact device GPU assets');
   for(let i=0;i<21;i++)qa.startWave();qa.holdSpawns();qa.setPlayer(s.x-1.3,s.z);qa.setPoints(20000);const fresh=qa.makeZombie(0,20);qa.interact();
-  assert(s.used&&fresh.dead);assert.equal(qa.get().points,50,'A new run has its own single-use charge');qa.start();
-  console.log('PASS: post-wave-20 mausoleum nuke, clear tomb passages, 20,000-essence affordability, single-use activation, map-wide kills of all types/rage/floors, exact body bounties/shared score, untouched spawn queue/player, bounded models/lights and reusable fresh-run reset.');
+  assert(s.used&&fresh.dead);assert.equal(qa.get().points,50,'A new run has its own single-use charge');
+  // An empty estate still detonates: the purge is what wakes the boss.
+  qa.start();for(let i=0;i<21;i++)qa.startWave();qa.holdSpawns();qa.clearQueuedSpawns();qa.setPlayer(s.x-1.3,s.z);qa.setPoints(20000);
+  assert(qa.get().zombies.every(e=>e.dead));qa.interact();assert(s.used);assert.equal(qa.get().points,0);assert.equal(qa.get().boss.stage,'waking','An empty estate still wakes Sir Blackthorn');qa.start();
+  console.log('PASS: post-wave-20 mausoleum nuke, clear tomb passages, 20,000-essence affordability, single-use activation, map-wide kills of all types/rage/floors, exact body bounties/shared score, untouched spawn queue/player, bounded models/lights, reusable fresh-run reset, and detonation always waking Sir Blackthorn.');
 }

@@ -108,6 +108,6 @@ export function verifyCellar(qa,frames,listeners,elements){
   const normal=travel(false),fast=travel(true);assert(Math.abs(fast/normal-1.4)<.005,'Frenzy speeds up already living enemies by 40%');
   qa.start();for(let i=0;i<10;i++)qa.startWave();qa.setHealth(10000);qa.setPoints(5000);qa.setPlayer(cx-3.4,-68.4,-4.2);qa.interact();let ticks=0;
   while(qa.get().waveDelay===0&&ticks++<2600){for(const e of qa.get().zombies)if(!e.dead)qa.damageEnemy(e,100000);frames(1);}
-  assert(ticks<2600,'The frenzied wave can actually be completed');assert.equal(qa.get().wave,10);assert.equal(qa.get().frenzyWave,0);assert.equal(qa.get().waveDelay,12);assert(!qa.get().curse.pending,'The wave-ten frenzy keeps normal restock time because its bell choice was before wave ten');frames(719);assert.equal(qa.get().wave,10);frames(2);assert.equal(qa.get().wave,11);assert.equal(qa.get().frenzyWave,0);assert(qa.get().inventory.lmg.owned,'LMG persists beyond frenzy');
+  assert(ticks<2600,'The frenzied wave can actually be completed');assert.equal(qa.get().wave,10);assert.equal(qa.get().frenzyWave,0);assert.equal(qa.get().waveDelay,12);frames(719);assert.equal(qa.get().wave,10);frames(2);assert.equal(qa.get().wave,11);assert.equal(qa.get().frenzyWave,0);assert(qa.get().inventory.lmg.owned,'LMG persists beyond frenzy');
   console.log('PASS: actual 40% frenzy movement increase, accelerated reinforcement spawning, natural wave completion and normal wave 11.');qa.start();
 }

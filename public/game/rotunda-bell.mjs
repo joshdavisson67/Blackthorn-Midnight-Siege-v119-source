@@ -71,7 +71,8 @@ export function buildRotundaBell({world,solidMeshes,interactables,batchArticulat
   // With the lip/clapper above 2.88m, players (including jumps) and brutes
   // retain the central ground route without a new floor collision obstacle.
   solidMeshes.push(...solids);
+  // The bell no longer takes curse choices (v130); ranks are chosen on the title
+  // screen. It stays as the rotunda's landmark and tolls when Sir Blackthorn falls.
   const station={type:'bell',name:'GREAT ROTUNDA BELL',x:ROTUNDA_BELL.x+ROTUNDA_BELL.pullX,z:ROTUNDA_BELL.z+ROTUNDA_BELL.pullZ,y:0,price:0,hex:'#cfb37a',used:false};
-  interactables.push(station);
   return {group,station,bounds,bodyBounds,handleBounds,triangles,materials,solids,plate};
 }

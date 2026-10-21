@@ -5,7 +5,7 @@ import {UPPER_Y} from '../public/game/vertical.mjs';
 
 export function verifyFacade(qa){
   const state=qa.get(),{facade,world,mainRoof}=state;world.updateMatrixWorld(true);
-  assert.equal(state.colliders.length,514,'Only the eight portico pedestals add collision');
+  assert.equal(state.colliders.length,515,'Only the eight portico pedestals (and the closed tomb lid rest, v130) add collision');
   assert.equal(state.colliders.filter(c=>c.portico).length,8);
   assert.equal(facade.faces.length,4);assert.equal(facade.windows.length,65);assert.equal(facade.windows.filter(w=>w.upper).length,13);assert.equal(facade.dormers.length,0,'The pediment replaces the front dormers');assert.equal(facade.drains.length,12);
   let triangles=0;const materials=new Set(),geometries=new Set();

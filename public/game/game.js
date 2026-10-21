@@ -1,17 +1,18 @@
 import {BRUTE} from './brute.mjs?v=30';
 import {FERAL} from './feral.mjs?v=116';
-import {CURSE_RULES,createCurse,curseWaveConfig,curseReward,chooseCurseEnemyKind} from './curse.mjs?v=116';
-import {createCurseUI} from './curse-ui.mjs?v=116';
-import {ENRAGE,enrageNearby} from './enrage.mjs?v=27';
+import {CURSE_RULES,MAX_CURSE_RANK,createCurse,createCurseLadder,curseTitle,curseWaveConfig,curseReward,chooseCurseEnemyKind} from './curse.mjs?v=130';
+import {createCurseUI,curseSummary} from './curse-ui.mjs?v=130';
+import {BOSS,WARDEN,bossPhase,dueSummons,lanceVolley,cooldownScale,segmentDistance,wakeStep,dressKnight,dressWarden,createBossEffects} from './blackthorn-boss.mjs?v=130';
+import {ENRAGE,enrageNearby} from './enrage.mjs?v=130';
 import {createCrowd,enemyBody,PLAYER_RADIUS,SPREAD} from './crowd.mjs?v=123';
-import {createLeaderboard} from './leaderboard.mjs?v=129';
-import {createChangelog} from './changelog.mjs?v=129';
+import {createLeaderboard} from './leaderboard.mjs?v=130';
+import {createChangelog} from './changelog.mjs?v=130';
 import {configureMinimap} from './minimap-settings.mjs?v=79';
 import {COMBAT,createWeaponRecoil,staggerLimits,advanceStagger,registerStagger,createCombatHud} from './combat-feedback.mjs?v=84';
 import {ARMOR,armorRank} from './armor.mjs?v=94';
 import {createGrassMaterial,alignGrassPatch,ESTATE_PATHS,ESTATE_PAVING,bakeLawnMap} from './grounds.mjs?v=126';
-import {MAUSOLEUM,inMausoleum,inGraveyard} from './graveyard-layout.mjs?v=28';
-import {buildGraveyard} from './graveyard.mjs?v=126';
+import {MAUSOLEUM,SARCOPHAGUS,GRAVE_PLOTS,inMausoleum,inGraveyard} from './graveyard-layout.mjs?v=28';
+import {buildGraveyard} from './graveyard.mjs?v=130';
 import {CELLAR,isCellarOpen,setCellarOpen,cellarStairHeight} from './cellar-layout.mjs?v=28';
 import {buildCellar,drawCellarMap} from './cellar.mjs?v=129';
 import {SHED,SHED_FRONT,inShed} from './shed-layout.mjs?v=76';
@@ -27,7 +28,7 @@ import {createWeaponModel,updatePistolSlide} from './weapon-models.mjs?v=129';
 import {weaponSurfaces} from './weapon-surfaces.mjs?v=87';
 import {GRENADE_THROW,createGrenadeAssets,createGrenadeThrow} from './grenade-throw.mjs?v=44';
 import {POWERUPS,choosePowerup,powerupIcon,createPowerupAssets} from './powerups.mjs?v=129';
-import {createEnemyAssets} from './enemy-assets.mjs?v=124';
+import {createEnemyAssets} from './enemy-assets.mjs?v=130';
 import {createCombatLights} from './combat-lights.mjs?v=129';
 import {createLighting,prepareLightingMaterials,patchLightingMaterial} from './lighting.mjs?v=120';
 import {createEnvironmentLights} from './environment-lights.mjs?v=129';
@@ -46,8 +47,8 @@ import {createSignage} from './signage.mjs?v=94';
 import {FORGE,forgeBonuses,configureForgeStation} from './soul-forge.mjs?v=118';
 import {loadEstateTextures,tiledBox,ambientEnvironment,makeFilmPass,renderCleanFrame,freezeStaticTransforms,finishMapFrom,OAK_FINISH,WET_STONE_FINISH,flashlightBeamTexture} from './graphics.mjs?v=129';
 import {ESTATE_SPAWNS,roomAt,estateLocation} from './estate-layout.mjs?v=28';
-import {buildMansionExpansion,drawEstateMap} from './mansion-expansion.mjs?v=129';
-import {buildRotundaBell} from './rotunda-bell.mjs?v=88';
+import {buildMansionExpansion,drawEstateMap} from './mansion-expansion.mjs?v=130';
+import {buildRotundaBell} from './rotunda-bell.mjs?v=130';
 import {UPPER_SLAB_BOTTOM} from './upper-shell.mjs?v=116';
 import {EVENT_RULES,WORLD_EVENTS,createWorldEvents} from './world-events.mjs?v=97';
 import {createWorldEventVisuals} from './world-event-visuals.mjs?v=97';
@@ -256,6 +257,9 @@ const environmentLights=createEnvironmentLights(scene,[...expansion.fixtures,...
 const frozenTransforms=freezeStaticTransforms(scene,world);
 for(const m of solidMeshes){m.geometry.computeBoundingBox();m.geometry.computeBoundingSphere();}
 const enemyAssets=createEnemyAssets(batchArticulated),combatLights=createCombatLights(scene,lighting);
+// Sir Blackthorn and the curse ladder (v130).
+const bossFx=createBossEffects(world),curseLadder=createCurseLadder();
+let boss={stage:'dormant',enemy:null,clock:0,summons:0,lance:0,cry:0,cast:null,victories:0};
 for(const rig of enemyAssets.templates){prepareLightingMaterials(rig.group);const rage=rig.group.clone(true);enemyAssets.enrage({group:rage});prepareLightingMaterials(rage);}
 const powerupAssets=createPowerupAssets();
 const {weapons,weaponAimFov,waveConfig,isBlocked,indexColliders}=await import('./core.mjs?v=116');indexColliders(colliders);let nav=makeNavigation();
@@ -269,7 +273,7 @@ function makeNavigation(){
 let armor=0,armorMax=0,armorTier=0,frenzyWave=0,waveFiveFinale=null;
 let mode='menu',elapsed=0,lookYaw=0,lookPitch=0,mouseDown=false,aiming=false,pointer=false,lastTime=performance.now(),recoil=0,shotTimer=0,reloadLeft=0,reloadDuration=0,flashTime=0,hitTime=0,damageFlash=0,nukeFlashTime=0,toastTime=0,bannerTime=0,waveDelay=7,spawnTimer=0,toSpawn=0,spawned=0,navTimer=0,walkPhase=0,jumpV=0,feetY=0,grounded=true,lastHurt=-20,grenades=3,weapon='glock',points=500,totalScore=0,kills=0,wave=0,health=100,maxHealth=100,runTime=0,perkOwned=new Set(),inventory={};const keys=new Set(),player=new T.Vector3(0,0,20);
 const curse=createCurse();
-const curseUI=createCurseUI({document,curse,onChoice:resolveCurseChoice,onClose:pauseGame});
+const curseUI=createCurseUI({document,curse});
 const weaponRecoil=createWeaponRecoil(),combatHud=createCombatHud({hit:$('hit'),headshot:$('headshotIndicator'),directions:$('damageDirections'),toggle:$('headshotToggle')});
 let reloadHudVisible=false,reloadHudProgress=-1,reloadHudPercent=-1;
 const worldEvents=createWorldEvents({
@@ -318,9 +322,9 @@ const playerCanOccupy=(x,z,y)=>crowd.canOccupy(x,z,y,PLAYER_RADIUS,1.8,null,play
 function bruteCrouchAt(x,z,y){
   return y>UPPER_Y-2||(y>-.3&&Math.abs(x-MAUSOLEUM.x)<MAUSOLEUM.w/2+1&&z>MAUSOLEUM.z-MAUSOLEUM.d/2-1&&z<MAUSOLEUM.frontZ+2);
 }
-function makeZombie(x,z,brute=false,dog=false,rareDog=false,y=0,feral=false){
+function makeZombie(x,z,brute=false,dog=false,rareDog=false,y=0,feral=false,asset={}){
   if(feral){dog=rareDog=brute=false;}else if(rareDog){dog=true;brute=false;}
-  const rig=enemyAssets.instantiate({rng,brute,dog,rareDog,feral}),cfg=curseWaveConfig(wave,curse.rank),hp=cfg.health*(dog?.85:brute?BRUTE.healthMultiplier:1)*(rareDog?2:1);
+  const rig=enemyAssets.instantiate({rng,brute,dog,rareDog,feral,...asset}),cfg=curseWaveConfig(wave,curse.rank),hp=cfg.health*(dog?.85:brute?BRUTE.healthMultiplier:1)*(rareDog?2:1);
   const e={...rig,walkPos:new T.Vector3(x,y,z),floorY:y,hp,maxHp:hp,speed:cfg.speed*(feral?FERAL.speedMultiplier:rareDog?RARE_DOG_SPEED_MULTIPLIER:dog?DOG_SPEED_MULTIPLIER:brute?.77:rand(.85,1.15)),attack:rand(.2,1),enraged:false,dead:false,death:0,groan:rand(4,12),pathTimer:0,clearPath:false};
   const body=enemyBody(e);e.radius=body.radius;
   e.staggerProfile=staggerLimits(e);e.staggerMeter=e.staggerLeft=e.staggerCooldown=0;e.staggerShotId=-1;e.staggerShotStrength=0;
@@ -368,12 +372,12 @@ function beginWaveFiveFinale(){
   spawnEnemy();spawnTimer=waveConfig(wave).interval*.4;
 }
 function unlockShed(){if(!shed.unlock())return false;nav=makeNavigation();nav.rebuild(player.x,player.z,player.y);notify('A DOOR HAS BLOWN OPEN SOMEWHERE…',5);noise(.45,.16,350);tone(65,.65,.09,'sawtooth',28);return true;}
-function startWave(){curse.cancel();curseUI.close();wave++;frenzyWave=0;waveFiveFinale=null;upperSpawnSlot=wave>10?Math.floor(rng()*4):0;if(wave>=SHED.unlockWave)unlockShed();if(wave>MAUSOLEUM.unlockAfterWave)unlockMausoleum();if(wave===CELLAR.unlockWave){setCellarOpen(true);cellar.gate.disabled=true;nav=makeNavigation();nav.rebuild(player.x,player.z,player.y);notify('NORTH GROUNDS · THE STORM CELLAR IS OPEN');}const cfg=curseWaveConfig(wave,curse.rank);toSpawn=cfg.count;spawned=0;spawnTimer=.7;waveDelay=0;announce(`WAVE ${String(wave).padStart(2,'0')}`,wave===10?'STORM CELLAR UNSEALED · NORTH GROUNDS':wave===11?'THE DEAD NOW RISE ON THE SECOND FLOOR':wave===1?'THE ESTATE HAS AWAKENED':wave===6?'ASHFANG HOUNDS JOIN THE HUNT':wave===7?'FERAL STALKERS JOIN THE HUNT':wave%5===0?'THE BRUTES HAVE RISEN':'THE DEAD GROW RESTLESS');tone(130,1,.1,'sawtooth',45);worldEvents.beginWave(wave);}
-function killZombie(e,headshot=false,impact={}){if(e.dead)return;e.dead=true;e.death=0;const massKill=impact.source==='nuke';if(massKill)e.hp=0;const reward=addPoints(worldEvents.killReward(headshot?(e.brute?200:75):e.brute?110:50));kills++;if(e.bonusEssence)eventVisuals.dropEssence(e.walkPos.x,e.walkPos.z,e.floorY,pickups);const enraged=massKill?0:enrageNearby(e,zombies,Math.random,enemyAssets.enrage);if(!massKill){if(headshot){notify(`HEADSHOT +${reward}`);}else tone(280,.06,.025,'triangle');}if(Math.random()<.13)dropPickup(e.group.position.x,e.group.position.z,choosePowerup(Math.random()),e.floorY);bloodBurst(e.group.position.clone().add(new T.Vector3(0,e.dog?.55:1.4,0)),massKill?4:10);beginZombieDeath(e,{...impact,source:massKill?'grenade':impact.source,part:headshot?'head':impact.part},rng);
+function startWave(){wave++;frenzyWave=0;waveFiveFinale=null;upperSpawnSlot=wave>10?Math.floor(rng()*4):0;if(wave>=SHED.unlockWave)unlockShed();if(wave>MAUSOLEUM.unlockAfterWave)unlockMausoleum();if(wave===CELLAR.unlockWave){setCellarOpen(true);cellar.gate.disabled=true;nav=makeNavigation();nav.rebuild(player.x,player.z,player.y);notify('NORTH GROUNDS · THE STORM CELLAR IS OPEN');}const cfg=curseWaveConfig(wave,curse.rank);toSpawn=cfg.count;spawned=0;spawnTimer=.7;waveDelay=0;announce(`WAVE ${String(wave).padStart(2,'0')}`,wave===10?'STORM CELLAR UNSEALED · NORTH GROUNDS':wave===11?'THE DEAD NOW RISE ON THE SECOND FLOOR':wave===1?'THE ESTATE HAS AWAKENED':wave===6?'ASHFANG HOUNDS JOIN THE HUNT':wave===7?'FERAL STALKERS JOIN THE HUNT':wave%5===0?'THE BRUTES HAVE RISEN':'THE DEAD GROW RESTLESS');tone(130,1,.1,'sawtooth',45);worldEvents.beginWave(wave);}
+function killZombie(e,headshot=false,impact={}){if(e.dead)return;e.dead=true;e.death=0;endWarCry(e);if(e.boss)defeatBlackthorn(e);else if(e.warden)addPoints(WARDEN.reward);const massKill=impact.source==='nuke';if(massKill)e.hp=0;const reward=addPoints(worldEvents.killReward(headshot?(e.brute?200:75):e.brute?110:50));kills++;if(e.bonusEssence)eventVisuals.dropEssence(e.walkPos.x,e.walkPos.z,e.floorY,pickups);const enraged=massKill?0:enrageNearby(e,zombies,Math.random,enemyAssets.enrage);if(!massKill){if(headshot){notify(`HEADSHOT +${reward}`);}else tone(280,.06,.025,'triangle');}if(Math.random()<.13)dropPickup(e.group.position.x,e.group.position.z,choosePowerup(Math.random()),e.floorY);bloodBurst(e.group.position.clone().add(new T.Vector3(0,e.dog?.55:1.4,0)),massKill?4:10);beginZombieDeath(e,{...impact,source:massKill?'grenade':impact.source,part:headshot?'head':impact.part},rng);
 if(enraged&&e.walkPos.distanceToSquared(player)<324)notify(`BLOOD RAGE · ${enraged} NEARBY ${enraged===1?'ENEMY':'ENEMIES'} ENRAGED`);
 const corpses=zombies.filter(z=>z.dead&&z.ragdoll.life>z.death);if(corpses.length>14){const oldest=corpses.reduce((a,b)=>a.death>b.death?a:b);oldest.ragdoll.life=oldest.death;}
 }
-function damageEnemy(e,amount,headshot=false,impact={}){if(e.dead)return;e.hp-=amount;if(impact.part==='leg'&&!headshot&&noteLegDamage(e,amount)){e.bodyHeight=CRAWL.height;tone(55,.18,.05,'sine',38);noise(.12,.05,260);}addPoints(10);hitTime=headshot?.22:.14;const reaction=headshot&&impact.part!=='head'?{...impact,part:'head'}:impact;if(combatHud.hit(headshot,impact.shotId)){tone(1250,.055,.035,'triangle',1850);tone(1850,.07,.022,'sine',1200);}reactToHit(e,reaction);registerStagger(e,reaction);if(e.hp<=0)killZombie(e,headshot,reaction);}
+function damageEnemy(e,amount,headshot=false,impact={}){if(e.dead||e.waking)return;if(e.warden&&impact.part==='shield'){amount*=WARDEN.shieldFactor;tone(900,.05,.02,'square',600);}e.hp-=amount;if(impact.part==='leg'&&!headshot&&noteLegDamage(e,amount)){e.bodyHeight=CRAWL.height;tone(55,.18,.05,'sine',38);noise(.12,.05,260);}addPoints(10);hitTime=headshot?.22:.14;const reaction=headshot&&impact.part!=='head'?{...impact,part:'head'}:impact;if(combatHud.hit(headshot,impact.shotId)){tone(1250,.055,.035,'triangle',1850);tone(1850,.07,.022,'sine',1200);}reactToHit(e,reaction);if(!e.elite)registerStagger(e,reaction);if(e.hp<=0)killZombie(e,headshot,reaction);}
 function bloodBurst(pos,count){for(let i=0;i<count;i++){const sx=rand(.01,.025),sy=rand(.01,.03),sz=rand(.01,.025),vx=rand(-1.4,1.4),vy=rand(.5,2),vz=rand(-1.4,1.4),effect=bloodPool.acquire();if(!effect)continue;effect.mesh.position.copy(pos);effect.mesh.scale.set(sx,sy,sz);effect.vel.set(vx,vy,vz);effect.life=effect.max=.6;effects.push(effect);}}
 const raycaster=new T.Raycaster();const dir=new T.Vector3();let shotId=0;
 function shoot(){if(mode!=='playing'||grenadeThrow.active||reloadLeft>0||shotTimer>0)return;const inv=inventory[weapon],w=weapons[weapon];if(inv.ammo<=0){shotTimer=.25;tone(120,.045,.03,'square');reload();return;}inv.ammo--;shotTimer=w.rate;{const r=SHOT_RUMBLE[weapon];if(r)padRumble(...r);}const id=++shotId;if(weapon==='glock')gunGroups.glock.userData.slideTime=.12;flashTime=.045;noise(weapon==='shotgun'?.22:.12,.18,weapon==='shotgun'?1200:2500);tone(80,.13,.1,'triangle',35);const active=zombies.filter(e=>!e.dead).map(e=>e.group);const hitObjects=[...solidMeshes,...active];
@@ -441,7 +445,7 @@ function activateMausoleumNuke(){
   if(mode!=='playing'||!graveyard.open||s.locked||s.used||!inMausoleum(player.x,player.z)||Math.abs(player.y-s.y)>=1.2||Math.hypot(player.x-s.x,player.z-s.z)>=2.3)return false;
   if(points<s.price){notify(`NEED ${s.price-points} MORE ESSENCE`);tone(110,.2,.03,'square');return false;}
   const victims=zombies.filter(e=>!e.dead);
-  if(!victims.length){notify('NO UNDEAD ON THE ESTATE · NUKE REMAINS ARMED');return false;}
+  // Detonating always wakes Sir Blackthorn, even on an empty estate (v130).
   if(!device.spend())return false;
   points-=s.price;const scoreBefore=totalScore,origin=new T.Vector3(s.x,1,s.z);
   // Use the same body-kill path on every floor. No synthetic bullet hit, blast
@@ -450,23 +454,165 @@ function activateMausoleumNuke(){
   const reward=totalScore-scoreBefore;nukeFlashTime=.75;
   noise(.7,.18,180);tone(45,1.1,.15,'sawtooth',26);
   announce('ATOMIC PURGE',`${victims.length} UNDEAD DESTROYED · +${reward.toLocaleString()} ESSENCE`);
-  notify(`THE LAST DAWN · +${reward.toLocaleString()} ESSENCE · DEVICE SPENT`);updateHud();return true;
+  notify(`THE LAST DAWN · +${reward.toLocaleString()} ESSENCE · DEVICE SPENT`);wakeBlackthorn();updateHud();return true;
 }
+
+// ---- Sir Blackthorn -----------------------------------------------------------------
+// The Last Dawn wakes him. The lid slides off, he rises out of the tomb and
+// steps down; regular spawns hold until he falls, then the run carries on.
+function blackthornHoldsSpawns(){return boss.stage==='waking'||boss.stage==='active';}
+function resetBlackthorn(){boss={stage:'dormant',enemy:null,clock:0,summons:0,lance:0,cry:0,cast:null,victories:0};bossFx.clear();graveyard.openLid(0);$('bossHud').classList.add('hidden');}
+function wakeBlackthorn(){
+  if(boss.stage!=='dormant')return false;
+  boss.stage='waking';boss.clock=0;boss.enemy=null;
+  announce('THE SARCOPHAGUS STIRS','SIR BLACKTHORN AWAKENS · GET CLEAR OF THE TOMB');
+  noise(1.2,.12,120);tone(38,2.4,.14,'sawtooth',30);return true;
+}
+function makeElite(kind,x,z,y=0){
+  const knight=kind==='knight',cfg=curseWaveConfig(wave,curse.rank);
+  const e=makeZombie(x,z,!knight,false,false,y,false,{scale:knight?BOSS.scale:BRUTE.scale*WARDEN.scale});
+  // Both use brute-sized collision and brute routes, whatever rig they wear.
+  e.brute=true;e.elite=true;e.noEnrage=true;const body=enemyBody(e);e.radius=body.radius;e.bodyHeight=body.height;e.crouch=0;
+  e.staggerProfile=staggerLimits(e);
+  if(knight){e.boss=true;e.maxHp=e.hp=cfg.health*BOSS.healthMultiplier;e.speed=cfg.speed*BOSS.speed;const dress=dressKnight(e);e.orb=dress.orb;}
+  else{e.warden=true;e.maxHp=e.hp=cfg.health*BRUTE.healthMultiplier*WARDEN.healthMultiplier;e.speed=cfg.speed*WARDEN.speed;const dress=dressWarden(e);e.shield=dress.shield;}
+  tagZombie(e,e);if(e.shield)for(const m of e.shield)m.userData.part='shield';
+  return e;
+}
+function updateWaking(dt){
+  boss.clock+=dt;const step=wakeStep(boss.clock);
+  graveyard.openLid(step.lid);
+  if(step.stage==='lid'&&step.lid<.1&&!boss.lidSound){boss.lidSound=true;noise(1.1,.16,260);tone(52,1.2,.1,'sawtooth',40);}
+  if((step.stage==='rise'||step.stage==='step'||step.stage==='done')&&!boss.enemy){
+    const e=makeElite('knight',BOSS.front.x,BOSS.front.z);e.waking=true;boss.enemy=e;
+    boss.lance=2.5;boss.cry=BOSS.cry.firstDelay;boss.summons=0;boss.cast=null;
+  }
+  const e=boss.enemy;if(!e)return;
+  const g=e.group,face=Math.atan2(player.x-g.position.x,player.z-g.position.z);g.rotation.y=face;
+  if(step.stage==='rise'){const r=step.rise;g.position.set(BOSS.rest.x,-2.6+(r*r*(3-2*r))*3.05,BOSS.rest.z);}
+  else if(step.stage==='step'){const t=step.step;g.position.set(BOSS.rest.x,(.45+Math.sin(t*Math.PI)*.35)*(1-t)+enemyFloorHeight(BOSS.front.x,BOSS.front.z)*t,T.MathUtils.lerp(BOSS.rest.z,BOSS.front.z,t));if(t>.85&&!boss.landed){boss.landed=true;noise(.4,.2,180);tone(45,.6,.12,'sine',30);padRumble(.8,.5,300);}}
+  else if(step.stage==='done'){
+    e.waking=false;boss.stage='active';g.position.set(BOSS.front.x,enemyFloorHeight(BOSS.front.x,BOSS.front.z)-.02,BOSS.front.z);
+    announce(BOSS.name,`${BOSS.title} · CURSE RANK ${curse.rank}`);tone(70,1.8,.16,'sawtooth',35);
+    $('bossHud').classList.remove('hidden');
+  }
+}
+// Called from the enemy loop for the boss: casts lances and war cries, and
+// summons Gravewardens at health thresholds. Returns true while casting.
+function updateBlackthorn(e,dt,dist,sameFloor){
+  const fraction=Math.max(0,e.hp/e.maxHp),phase=bossPhase(fraction),pace=1/cooldownScale(fraction);
+  if(phase==='enraged'&&!e.furious){e.furious=true;e.speed*=BOSS.enragedSpeed;enemyAssets.enrage(e);notify('SIR BLACKTHORN IS ENRAGED',3);tone(55,1.2,.14,'sawtooth',38);}
+  for(let n=dueSummons(fraction,boss.summons);n>0;n--){boss.summons++;summonWarden(e);boss.cry=Math.min(boss.cry,1.4);}
+  if(boss.cast){
+    const c=boss.cast;c.left-=dt;e.orb.scale.setScalar(c.kind==='lance'?.04+.12*(1-c.left/c.time):.001);
+    if(c.left<=0){boss.cast=null;e.orb.scale.setScalar(.001);if(c.kind==='lance')throwLances(e,fraction);else warCry(e);}
+    return true;
+  }
+  boss.lance-=dt*pace;boss.cry-=dt*pace;
+  const allies=zombies.some(o=>o!==e&&!o.dead&&o.walkPos.distanceTo(e.walkPos)<BOSS.cry.radius);
+  if(boss.cry<=0&&allies){boss.cast={kind:'cry',left:BOSS.cry.windup,time:BOSS.cry.windup};boss.cry=BOSS.cry.cooldown;tone(90,.9,.08,'sawtooth',260);return true;}
+  if(boss.lance<=0&&sameFloor&&dist>=BOSS.lance.minRange&&dist<=BOSS.lance.maxRange&&bossCanSee(e)){
+    boss.cast={kind:'lance',left:BOSS.lance.windup,time:BOSS.lance.windup};boss.lance=rand(...BOSS.lance.cooldown);tone(330,.7,.05,'sine',880);return true;
+  }
+  return false;
+}
+const bossEye=new T.Vector3(),bossTarget=new T.Vector3(),lanceDir=new T.Vector3(),lanceUp=new T.Vector3(0,1,0);
+function bossCanSee(e){
+  bossEye.set(e.walkPos.x,e.walkPos.y+2.1,e.walkPos.z);bossTarget.set(player.x,player.y+1.2,player.z);
+  lanceDir.subVectors(bossTarget,bossEye);const d=lanceDir.length();lanceDir.divideScalar(d);
+  raycaster.set(bossEye,lanceDir);raycaster.far=d;const hit=raycaster.intersectObjects(solidMeshes,false)[0];raycaster.far=Infinity;
+  return !hit;
+}
+// Applied after the walk animation: the lance arm rises, the cry flings both wide.
+function poseBlackthorn(e){
+  const c=boss.cast;if(!c)return;const f=Math.min(1,(c.time-c.left)/.25);
+  if(c.kind==='lance'){const a=e.arms[0];a.pivot.rotation.x=T.MathUtils.lerp(a.pivot.rotation.x,-2.4,f);a.pivot.rotation.z=T.MathUtils.lerp(a.pivot.rotation.z,-.2,f);a.forearm.rotation.x=T.MathUtils.lerp(a.forearm.rotation.x,-.3,f);}
+  else{for(const [i,a] of e.arms.entries()){a.pivot.rotation.x=T.MathUtils.lerp(a.pivot.rotation.x,-1.5,f);a.pivot.rotation.z=T.MathUtils.lerp(a.pivot.rotation.z,i?.95:-.95,f);}if(e.jaw)e.jaw.rotation.x=.55*f;e.spine.rotation.x=T.MathUtils.lerp(e.spine.rotation.x,-.25,f);}
+}
+function throwLances(e,fraction){
+  const from=new T.Vector3();e.orb.getWorldPosition(from);
+  bossTarget.set(player.x,player.y+1.15,player.z);const base=bossTarget.sub(from).normalize();
+  const count=lanceVolley(fraction);
+  for(let i=0;i<count;i++){const angle=(i-(count-1)/2)*BOSS.lance.spread;bossFx.launch(from,base.clone().applyAxisAngle(lanceUp,angle));}
+  noise(.25,.1,1400);tone(520,.4,.05,'triangle',140);
+}
+const lanceChest=new T.Vector3();
+function lanceHit(prev,next){
+  lanceChest.set(player.x,player.y+1.1,player.z);
+  if(segmentDistance(prev,next,lanceChest)>BOSS.lance.hitRadius)return false;
+  hurtPlayer(waveConfig(wave).damage*BOSS.lance.damage,next);tone(160,.25,.08,'sawtooth',60);
+  if(health<=0)gameOver();return true;
+}
+function lanceBlocked(p){return p.y<supportBelow(p.x,p.z,p.y+.1)||isBlocked(p.x,p.z,.08,colliders,undefined,p.y-.08,.16);}
+// War cry: every undead within reach is driven into a red fury for a while.
+function warCry(e){
+  bossFx.cry(e.walkPos);noise(.9,.18,220);tone(62,1.3,.18,'sawtooth',150);padRumble(.6,.6,400);
+  let roused=0;
+  for(const o of zombies){
+    if(o===e||o.dead||o.walkPos.distanceTo(e.walkPos)>BOSS.cry.radius)continue;
+    if(!o.warCry&&!o.enraged){o.cryMaterials=new Map();o.group.traverse(m=>{if(m.isMesh)o.cryMaterials.set(m,m.material);});enemyAssets.enrage(o);}
+    o.warCry=BOSS.cry.duration;roused++;
+  }
+  notify(roused?`SIR BLACKTHORN'S WAR CRY · ${roused} UNDEAD IN A FURY`:'SIR BLACKTHORN SCREAMS',3);
+}
+function endWarCry(o){
+  o.warCry=0;
+  if(o.cryMaterials){if(!o.enraged)for(const [m,material] of o.cryMaterials)m.material=material;o.cryMaterials=null;}
+}
+function summonWarden(e){
+  const body=enemyBody({brute:true});
+  for(let i=0;i<16;i++){
+    const a=i*2.4,r=3+(i%4)*.8,x=e.walkPos.x+Math.sin(a)*r,z=e.walkPos.z+Math.cos(a)*r,y=e.walkPos.y;
+    if(isBlocked(x,z,body.radius+.1,colliders,undefined,y,body.height)||Math.abs(supportBelow(x,z,y)-y)>.01||!nav.brutes.direction(x,z,y)?.reachable)continue;
+    if(!crowd.canOccupy(x,z,y,body.radius+.1,body.height)||Math.hypot(x-player.x,z-player.z)<2)continue;
+    const w=makeElite('warden',x,z,y);w.emergeLeft=w.emergeTime=WARDEN.emergeTime;w.emergeDepth=WARDEN.emergeDepth;w.group.position.y-=WARDEN.emergeDepth;
+    bossFx.summon(w.walkPos);announce('A GRAVEWARDEN RISES','SHOTS INTO ITS SHIELD DO A QUARTER DAMAGE');noise(.8,.14,160);tone(48,1.4,.12,'sawtooth',36);
+    return w;
+  }
+  return null;
+}
+function defeatBlackthorn(e){
+  if(boss.stage!=='active')return;
+  boss.stage='defeated';boss.cast=null;boss.victories++;bossFx.clear();$('bossHud').classList.add('hidden');
+  const reward=addPoints(BOSS.reward);
+  dropPickup(e.walkPos.x,e.walkPos.z,'ammo',e.floorY);
+  const unlocked=curseLadder.victory(curse.rank);renderCurseMenu();
+  announce('SIR BLACKTHORN FALLS',unlocked!==null?`CURSE RANK ${unlocked} UNLOCKED · CHOOSE IT ON THE TITLE SCREEN`:`+${reward.toLocaleString()} ESSENCE · THE HOUSE REMEMBERS`);
+  notify(`+${reward.toLocaleString()} ESSENCE · THE ROTUNDA BELL TOLLS`,5);
+  // The great bell tolls across the estate.
+  tone(110,3.2,.12,'triangle',55);tone(220,3.6,.07,'sine',110);tone(330,2.4,.04,'sine',165);
+}
+function updateBossHud(){
+  const e=boss.enemy;if(boss.stage!=='active'||!e)return;
+  const fraction=Math.max(0,e.hp/e.maxHp),wardens=zombies.filter(o=>o.warden&&!o.dead).length;
+  $('bossBar').style.width=`${(fraction*100).toFixed(1)}%`;
+  const state=`${e.furious?'ENRAGED · ':''}${Math.ceil(fraction*100)}%${wardens?` · ${wardens} GRAVEWARDEN${wardens>1?'S':''}`:''}`;
+  if($('bossState').textContent!==state)$('bossState').textContent=state;$('bossHud').classList.toggle('enraged',!!e.furious);
+}
+// Title-screen curse selector: every unlocked rank, plus the next one locked.
+function renderCurseMenu(){
+  const select=$('curseRank');select.replaceChildren();
+  for(let rank=0;rank<=curseLadder.unlocked;rank++){const o=document.createElement('option');o.value=String(rank);o.textContent=`RANK ${rank} · ${curseTitle(rank).toUpperCase()}`;select.appendChild(o);}
+  if(curseLadder.unlocked<MAX_CURSE_RANK){const o=document.createElement('option');o.value='locked';o.disabled=true;o.textContent=`RANK ${curseLadder.unlocked+1} · LOCKED`;select.appendChild(o);}
+  select.value=String(curseLadder.selected);
+  const next=curseLadder.selected===curseLadder.unlocked&&curseLadder.unlocked<MAX_CURSE_RANK?` · Defeat Sir Blackthorn on this rank to unlock rank ${curseLadder.unlocked+1}.`:'';
+  $('curseRankInfo').textContent=curseSummary(curseLadder.selected)+next;
+  $('menuCurse').dataset.rank=String(curseLadder.selected);
+}
+$('curseRank').onchange=()=>{const v=Number($('curseRank').value);if(Number.isSafeInteger(v))curseLadder.select(v);renderCurseMenu();};
+renderCurseMenu();
 function completeWave(){
   worldEvents.endWave();frenzyWave=0;
   const bonus=addPoints(300+wave*50);
   health=Math.min(maxHealth,health+30);grenades=Math.min(4,grenades+1);
   const tombUnlocked=wave>=MAUSOLEUM.unlockAfterWave&&unlockMausoleum();
-  // A bell choice owns the intermission immediately; ordinary waves keep the
-  // 12-second restock delay. Never queue both countdowns for the same clear.
-  const offered=curse.offer(wave);waveDelay=offered?0:12;
-  announce(waveFiveFinale?.wave===wave?'FINALE CLEARED':'WAVE CLEARED',`+${bonus} ESSENCE · ${offered?'THE GREAT ROTUNDA BELL CALLS':tombUnlocked?'EAST MAUSOLEUM UNSEALED':'RESTOCK AND PREPARE'}`);
+  waveDelay=12;
+  announce(waveFiveFinale?.wave===wave?'FINALE CLEARED':'WAVE CLEARED',`+${bonus} ESSENCE · ${tombUnlocked?'EAST MAUSOLEUM UNSEALED · SOMETHING STIRS IN THE TOMB':'RESTOCK AND PREPARE'}`);
   tone(390,.6,.07,'triangle',780);
-  if(offered){tone(220,1.6,.13,'triangle',110);tone(440,2.1,.07,'sine',220);}
   // Show the notice, minute clock and HUD state in this clearing frame.
   updateHud();
 }
-function triggerFrenzy(){if(curse.pending||waveDelay>0||waveFiveFinale?.wave===wave)return;frenzyWave=wave;waveDelay=0;toSpawn+=Math.max(12,Math.ceil(curseWaveConfig(wave,curse.rank).count*.5));spawnTimer=.1;announce('THE WARDEN HAS AWAKENED','FRENZY · FASTER UNDEAD + REINFORCEMENTS UNTIL THIS WAVE ENDS');tone(65,1.5,.16,'sawtooth',160);}
+function triggerFrenzy(){if(waveDelay>0||waveFiveFinale?.wave===wave)return;frenzyWave=wave;waveDelay=0;toSpawn+=Math.max(12,Math.ceil(curseWaveConfig(wave,curse.rank).count*.5));spawnTimer=.1;announce('THE WARDEN HAS AWAKENED','FRENZY · FASTER UNDEAD + REINFORCEMENTS UNTIL THIS WAVE ENDS');tone(65,1.5,.16,'sawtooth',160);}
 function closestStation(){let nearest=null,min=2.3;for(const s of interactables){if((s.used&&s.type!=='armor')||s.locked||(s.shedWeapon&&!inShed(player.x,player.z))||(s.type==='nuke'&&!inMausoleum(player.x,player.z))||(s.y<0&&!isCellarOpen()))continue;const d=Math.hypot(s.x-player.x,s.z-player.z);if(Math.abs((s.y||0)-player.y)<1.2&&d<min){nearest=s;min=d;}}return nearest;}
 function armorStationDescription(){
   if(armorTier===0)return `Absorbs ${maxHealth} damage before health · Unlocks Nano Shield Rank 1 at both stations`;
@@ -474,35 +620,10 @@ function armorStationDescription(){
   const recharge=rank.regenDelay?`Regenerates ${rank.regenRate} shield/s after ${rank.regenDelay}s without a hit`:`Regenerates ${rank.regenRate} shield/s continuously · No hit delay`;
   return `${armorTier===maximum?'ACTIVE':'UPGRADE'} · ${recharge}${armorTier<maximum?' · Keeps current shield':''}`;
 }
-function openCurseChoice(){
-  if(mode!=='playing'||!curse.pending||closestStation()!==rotundaBell.station)return false;
-  mode='curse';clearPlayInput();releaseMouse();grenadeThrow.cancel();curseUI.open();curseUI.update(mode);return true;
-}
-function clickRotundaBell(){
-  if(!curse.pending||closestStation()!==rotundaBell.station)return false;
-  camera.updateMatrixWorld();raycaster.setFromCamera(new T.Vector2(0,0),camera);
-  const hit=raycaster.intersectObject(rotundaBell.group,true)[0];if(!hit)return false;
-  const blocker=raycaster.intersectObjects(solidMeshes,true)[0];
-  if(blocker&&blocker.distance<hit.distance-.02)return false;
-  return openCurseChoice();
-}
-function resolveCurseChoice(choice){
-  if(!curse.resolve(choice))return false;
-  const fromDialog=mode==='curse';curseUI.close();
-  if(fromDialog){mode='paused';$('pauseTitle').textContent='Your fate is sealed.';$('pauseText').textContent=choice==='timeout'?'Click Resume to lock your mouse and enter the next wave.':'Click Resume to lock your mouse and begin the 7-second countdown.';showPauseMenu();}
-  if(choice==='timeout')startWave();else waveDelay=CURSE_RULES.decisionDelaySeconds;
-  curseUI.update(mode);
-  notify(choice==='embrace'?`CURSE RANK ${curse.rank} · ${curse.title.toUpperCase()} · PERMANENT THIS RUN`:choice==='timeout'?'BELL CHOICE EXPIRED · CURRENT CURSE KEPT':'THE CURSE IS RESISTED · CURRENT RANK KEPT',5);
-  // Reuse the existing capture flow after either a button choice or expiry.
-  // Its failure path exposes Resume if the browser needs another click.
-  if(fromDialog)requestPointer();updateHud();return true;
-}
-function stationDescription(s){if(s.type==='bell')return curse.pending?'Click the bell or press E · Embrace one permanent rank, or resist · Choose before the countdown ends':'The bell calls after waves 4, 9, 14, 19… clear';if(s.type==='kennel')return 'BELLA · White Maltipoo · Immortal companion · Follows you and bites undead within 12 yards of you';if(s.shedWeapon)return s.purchased?'M4 PURCHASED · PRESS 6 TO EQUIP':'30-ROUND FULL-AUTO · Includes full magazine and reserve · Keeps Soul Forge ranks';if(s.type==='shedDoor')return shed.open?'OPEN · Explore the groundskeeper’s workshop':'SEALED · Opens automatically at wave 7';if(s.type==='nuke')return s.used?'DEVICE SPENT':'ONE USE · Destroys all active undead across the estate · Normal body-kill bounties';if(s.type==='mausoleumDoor')return graveyard.open?'OPEN · Enter the Blackthorn family tomb':'SEALED · Clear wave 20 to unlock';if(s.type==='cellarDoor')return isCellarOpen()?'OPEN · Descend to the underground armory':'LOCKED · Opens automatically at wave 10';if(s.type==='bushmaster')return inventory.bushmaster.owned?'WEAPON OWNED · PRESS 5 TO EQUIP':'15-round semi-auto · 2× M4 damage · 10× precision scope';if(s.type==='lmg')return '100-round belt · 3× combat scope · Taking it triggers frenzy for the rest of this wave';if(s.type==='armor')return armorStationDescription();if(s.type==='powerup')return s.power==='double'?'Double bullet damage for 20 seconds':'Unlimited throws for 12 seconds · 0.5s recovery after each throw';if(s.type==='perk')return perkOwned.has(s.id)?'PERK ACTIVE':s.desc;if(s.type==='ammo')return 'Restock every owned weapon · Reload to fill magazines · +1 grenade';if(s.type==='upgrade')return s.forgeMaximum?'FORGED 3/3 · '+forgeBonuses(FORGE.maxRank).damageMultiplier+'× base damage · Maximum rank · Switch weapons to forge another':'RANK '+(inventory[weapon].forgeRank+1)+' OF 3 · '+forgeBonuses(inventory[weapon].forgeRank+1).damageMultiplier+'× base damage · 25% faster reload · +25% magazine and reserve capacity';return inventory[s.type].owned?'WEAPON OWNED · USE NUMBER KEYS':'Unlock a new weapon for this run';}
+function stationDescription(s){if(s.type==='kennel')return 'BELLA · White Maltipoo · Immortal companion · Follows you and bites undead within 12 yards of you';if(s.shedWeapon)return s.purchased?'M4 PURCHASED · PRESS 6 TO EQUIP':'30-ROUND FULL-AUTO · Includes full magazine and reserve · Keeps Soul Forge ranks';if(s.type==='shedDoor')return shed.open?'OPEN · Explore the groundskeeper’s workshop':'SEALED · Opens automatically at wave 7';if(s.type==='nuke')return s.used?'DEVICE SPENT':'ONE USE · Destroys all active undead across the estate · Wakes Sir Blackthorn';if(s.type==='mausoleumDoor')return graveyard.open?'OPEN · Enter the Blackthorn family tomb':'SEALED · Clear wave 20 to unlock';if(s.type==='cellarDoor')return isCellarOpen()?'OPEN · Descend to the underground armory':'LOCKED · Opens automatically at wave 10';if(s.type==='bushmaster')return inventory.bushmaster.owned?'WEAPON OWNED · PRESS 5 TO EQUIP':'15-round semi-auto · 2× M4 damage · 10× precision scope';if(s.type==='lmg')return '100-round belt · 3× combat scope · Taking it triggers frenzy for the rest of this wave';if(s.type==='armor')return armorStationDescription();if(s.type==='powerup')return s.power==='double'?'Double bullet damage for 20 seconds':'Unlimited throws for 12 seconds · 0.5s recovery after each throw';if(s.type==='perk')return perkOwned.has(s.id)?'PERK ACTIVE':s.desc;if(s.type==='ammo')return 'Restock every owned weapon · Reload to fill magazines · +1 grenade';if(s.type==='upgrade')return s.forgeMaximum?'FORGED 3/3 · '+forgeBonuses(FORGE.maxRank).damageMultiplier+'× base damage · Maximum rank · Switch weapons to forge another':'RANK '+(inventory[weapon].forgeRank+1)+' OF 3 · '+forgeBonuses(inventory[weapon].forgeRank+1).damageMultiplier+'× base damage · 25% faster reload · +25% magazine and reserve capacity';return inventory[s.type].owned?'WEAPON OWNED · USE NUMBER KEYS':'Unlock a new weapon for this run';}
 function interact(){
   if(mode!=='playing')return;
   updateForgeStations();const s=closestStation();if(!s)return;
-  if(s.type==='bell'){if(curse.pending)openCurseChoice();else notify('THE BELL CALLS BEFORE WAVES 5, 10, 15, 20…');return;}
-  if(s.type==='lmg'&&curse.pending){notify('CHOOSE AT THE ROTUNDA BELL BEFORE AWAKENING THE WARDEN');return;}
   if(s.type==='lmg'&&waveDelay>0){notify('THE WARDEN AWAKENS DURING A WAVE · WAIT FOR THE COUNTDOWN');return;}
   if(s.type==='nuke'){activateMausoleumNuke();return;}
   if(s.type==='cellarDoor'||s.type==='mausoleumDoor'||s.type==='shedDoor'){notify(stationDescription(s));return;}
@@ -532,12 +653,12 @@ function interact(){
 function updateHud(){
   updateReloadHud();
   updateForgeStations();curseUI.update(mode);
-  const finale=waveFiveFinale?.wave===wave&&waveDelay===0&&!curse.pending;
+  const finale=waveFiveFinale?.wave===wave&&waveDelay===0;
   const remaining=toSpawn+worldEvents.pendingSpawns+zombies.filter(e=>!e.dead).length;
   const eventMarkup=worldEvents.badge();setMarkup('eventStatus',eventMarkup);
   const bruteRemaining=finale?waveFiveFinale.enemies.filter(e=>e.brute&&!e.dead).length+waveFiveFinale.kinds.slice(waveFiveFinale.enemies.length).filter(kind=>kind==='brute').length:0;
   $('frenzyHud').textContent=finale?`WAVE 5 FRENZY · ${remaining} UNDEAD · ${bruteRemaining} BRUTES`:'FRENZY · SURVIVE THE CURRENT WAVE';
-  const rank=armorRank(armorTier);$('armorLabel').textContent=rank?.name||'AEGIS SHIELD';$('armorHud').classList.toggle('nano',!!rank);$('armorHud').classList.toggle('nanoRank2',rank?.rank===2);$('armorHud').classList.toggle('nanoRank3',rank?.rank===3);const recovering=!!rank&&armor<armorMax;const shieldWait=rank?Math.max(0,rank.regenDelay-(runTime-lastHurt)):0;$('armorStatus').classList.toggle('hidden',!rank);$('armorStatus').textContent=!recovering?'FULL SHIELD':shieldWait>0?`RECHARGE IN ${Math.ceil(shieldWait)}s`:`${rank.regenDelay===0?'CONTINUOUS':'RECHARGING'} · ${rank.regenRate} SHIELD/S`;$('armorHud').classList.toggle('regenerating',recovering&&shieldWait===0&&mode==='playing');$('armorHud').classList.toggle('depleted',armorMax>0&&armor<=0);$('armorHud').classList.toggle('hidden',armorMax===0);$('armorValue').textContent=Math.ceil(armor)+' / '+armorMax;$('armorBar').style.width=(armorMax?armor/armorMax*100:0)+'%';$('frenzyHud').classList.toggle('hidden',frenzyWave!==wave||!frenzyWave);const inv=inventory[weapon];$('wave').textContent=String(Math.max(wave,1)).padStart(2,'0');$('points').textContent=points.toLocaleString();$('kills').textContent=kills;$('healthLabel').textContent=doubleTime>0?`SPECTRAL FURY · ${Math.ceil(doubleTime)}s`:'VITAL SIGNS';$('health').textContent=Math.max(0,Math.ceil(health));$('healthBar').style.width=`${Math.max(0,health/maxHealth*100)}%`;$('healthReadout').classList.toggle('critical',health<maxHealth*.35);$('healthReadout').classList.toggle('spectral',doubleTime>0);$('weaponName').textContent=weapons[weapon].name+(inv.forgeRank?` / FORGED ${inv.forgeRank}/3`:'');$('ammo').textContent=inv.ammo;$('reserve').textContent=inv.reserve;$('reloadStatus').innerHTML=`R RELOAD <span> · </span> G GRENADE ${grenadeTime>0?'∞ · '+Math.ceil(grenadeTime)+'s':grenades}`;$('waveState').textContent=curse.pending?'THE BELL CALLS · '+Math.ceil(curse.timeLeft)+'s':waveDelay>0?`NEXT WAVE IN ${Math.ceil(waveDelay)}s`:finale?`FRENZIED FINALE · ${remaining} UNDEAD REMAIN`:`${frenzyWave===wave&&wave?'FRENZY · ':''}${remaining} UNDEAD REMAIN`;const perkMarkup=perkDefs.filter(p=>perkOwned.has(p.id)).map(p=>`<span title="${p.name}" style="color:${p.hex}">${p.icon}</span>`).join('');setMarkup('perks',perkMarkup);const powerupMarkup=[['double',doubleTime],['grenades',grenadeTime]].filter(([,time])=>time>0).map(([type,time])=>`<div class="powerupBadge" style="color:${POWERUPS[type].hex}">${powerupIcon(type)}<span>${POWERUPS[type].name}<b>${Math.ceil(time)}s</b></span></div>`).join('')+(bella.unlocked?`<div class="powerupBadge companionBadge" style="color:#f0dbc1">${BELLA_PAW}<span>IMMORTAL COMPANION<b>BELLA · ${bella.activity}</b></span></div>`:'');setMarkup('powerups',powerupMarkup);}
+  const rank=armorRank(armorTier);$('armorLabel').textContent=rank?.name||'AEGIS SHIELD';$('armorHud').classList.toggle('nano',!!rank);$('armorHud').classList.toggle('nanoRank2',rank?.rank===2);$('armorHud').classList.toggle('nanoRank3',rank?.rank===3);const recovering=!!rank&&armor<armorMax;const shieldWait=rank?Math.max(0,rank.regenDelay-(runTime-lastHurt)):0;$('armorStatus').classList.toggle('hidden',!rank);$('armorStatus').textContent=!recovering?'FULL SHIELD':shieldWait>0?`RECHARGE IN ${Math.ceil(shieldWait)}s`:`${rank.regenDelay===0?'CONTINUOUS':'RECHARGING'} · ${rank.regenRate} SHIELD/S`;$('armorHud').classList.toggle('regenerating',recovering&&shieldWait===0&&mode==='playing');$('armorHud').classList.toggle('depleted',armorMax>0&&armor<=0);$('armorHud').classList.toggle('hidden',armorMax===0);$('armorValue').textContent=Math.ceil(armor)+' / '+armorMax;$('armorBar').style.width=(armorMax?armor/armorMax*100:0)+'%';$('frenzyHud').classList.toggle('hidden',frenzyWave!==wave||!frenzyWave);const inv=inventory[weapon];$('wave').textContent=String(Math.max(wave,1)).padStart(2,'0');$('points').textContent=points.toLocaleString();$('kills').textContent=kills;$('healthLabel').textContent=doubleTime>0?`SPECTRAL FURY · ${Math.ceil(doubleTime)}s`:'VITAL SIGNS';$('health').textContent=Math.max(0,Math.ceil(health));$('healthBar').style.width=`${Math.max(0,health/maxHealth*100)}%`;$('healthReadout').classList.toggle('critical',health<maxHealth*.35);$('healthReadout').classList.toggle('spectral',doubleTime>0);$('weaponName').textContent=weapons[weapon].name+(inv.forgeRank?` / FORGED ${inv.forgeRank}/3`:'');$('ammo').textContent=inv.ammo;$('reserve').textContent=inv.reserve;$('reloadStatus').innerHTML=`R RELOAD <span> · </span> G GRENADE ${grenadeTime>0?'∞ · '+Math.ceil(grenadeTime)+'s':grenades}`;$('waveState').textContent=boss.stage==='active'?'SIR BLACKTHORN · THE DEAD WAIT ON HIM':waveDelay>0?`NEXT WAVE IN ${Math.ceil(waveDelay)}s`:finale?`FRENZIED FINALE · ${remaining} UNDEAD REMAIN`:`${frenzyWave===wave&&wave?'FRENZY · ':''}${remaining} UNDEAD REMAIN`;const perkMarkup=perkDefs.filter(p=>perkOwned.has(p.id)).map(p=>`<span title="${p.name}" style="color:${p.hex}">${p.icon}</span>`).join('');setMarkup('perks',perkMarkup);const powerupMarkup=[['double',doubleTime],['grenades',grenadeTime]].filter(([,time])=>time>0).map(([type,time])=>`<div class="powerupBadge" style="color:${POWERUPS[type].hex}">${powerupIcon(type)}<span>${POWERUPS[type].name}<b>${Math.ceil(time)}s</b></span></div>`).join('')+(bella.unlocked?`<div class="powerupBadge companionBadge" style="color:#f0dbc1">${BELLA_PAW}<span>IMMORTAL COMPANION<b>BELLA · ${bella.activity}</b></span></div>`:'');setMarkup('powerups',powerupMarkup);}
 const changelog=createChangelog({document,onOpen:pauseGame});
 const leaderboard=createLeaderboard({document,onOpen:()=>{if(mode==='playing')pauseGame();},onNewRun:()=>resetRun()});
 // Reuse two HUD nodes; transform the fill each frame without changing layout.
@@ -549,7 +670,7 @@ function updateReloadHud(){
   const percent=Math.round(progress*100);
   if(percent!==reloadHudPercent){$('reloadProgress').setAttribute('aria-valuenow',String(percent));reloadHudPercent=percent;}
 }
-function resetRun({capture=true}={}){lighting.setBlockerState('closed:closed',cellar.progress>0||graveyard.progress>0||shed.progress>0);releaseMouse();grenadeThrow.cancel();worldEvents.reset();eventVisuals.reset();curse.reset();curseUI.close();leaderboard.startRun();armor=armorMax=armorTier=frenzyWave=0;waveFiveFinale=null;setCellarOpen(false);cellar.reset();bella.reset();stationBuilder.reset();graveyard.reset();shed.reset();nav=makeNavigation();$('estateMap').classList.add('hidden');mapWasPlaying=false;for(const e of zombies){world.remove(e.group);disposeEnemy(e);}zombies.length=0;for(const e of effects){world.remove(e.mesh);if(e.type==='blast')e.mesh.material.dispose();}effects.length=0;bloodPool.reset();markPool.reset();for(const p of pickups)world.remove(p.mesh);pickups.length=0;combatLights.reset();player.set(0,0,20);lookYaw=0;lookPitch=0;camera.fov=weaponViewFov=75;camera.updateProjectionMatrix();health=maxHealth=100;points=500;totalScore=0;kills=0;wave=0;waveDelay=7;toSpawn=0;runTime=0;lastHurt=-20;perkOwned.clear();grenades=3;doubleTime=0;grenadeTime=0;grenadeCooldown=0;inventory=freshInventory();reloadLeft=0;shotTimer=0;feetY=0;jumpV=0;grounded=true;damageFlash=nukeFlashTime=hitTime=0;shotId=0;weaponRecoil.reset();combatHud.reset();toastTime=0;setOpacity('toast',0);clearPlayInput();gunGroups.glock.userData.slideTime=0;updatePistolSlide(gunGroups.glock,0,inventory.glock.ammo);selectWeapon('glock');mode='paused';$('menu').classList.add('hidden');$('pause').classList.add('hidden');$('hud').classList.remove('hidden');if(capture)requestPointer();else{$('pauseTitle').textContent='The estate is ready.';$('pauseText').textContent=padPlay()?'Press A to begin. Menu pauses the game.':touchControls?.enabled?'Tap Play to begin. The II button pauses the game.':'Click Play to lock your mouse and begin. Esc releases it and pauses the game.';$('captureHelp').classList.add('hidden');$('resume').classList.remove('hidden');$('resume').textContent=padPlay()?'PRESS A TO PLAY →':touchControls?.enabled?'TAP TO PLAY →':'CLICK TO PLAY →';showPauseMenu();}announce('BLACKTHORN ESTATE','BUY PERKS. WATCH YOUR AMMO. SURVIVE.');nav.rebuild(player.x,player.z,player.y);updateHud();}
+function resetRun({capture=true}={}){lighting.setBlockerState('closed:closed',cellar.progress>0||graveyard.progress>0||shed.progress>0);releaseMouse();grenadeThrow.cancel();worldEvents.reset();eventVisuals.reset();curse.setRank(curseLadder.selected);resetBlackthorn();leaderboard.startRun();armor=armorMax=armorTier=frenzyWave=0;waveFiveFinale=null;setCellarOpen(false);cellar.reset();bella.reset();stationBuilder.reset();graveyard.reset();shed.reset();nav=makeNavigation();$('estateMap').classList.add('hidden');mapWasPlaying=false;for(const e of zombies){world.remove(e.group);disposeEnemy(e);}zombies.length=0;for(const e of effects){world.remove(e.mesh);if(e.type==='blast')e.mesh.material.dispose();}effects.length=0;bloodPool.reset();markPool.reset();for(const p of pickups)world.remove(p.mesh);pickups.length=0;combatLights.reset();player.set(0,0,20);lookYaw=0;lookPitch=0;camera.fov=weaponViewFov=75;camera.updateProjectionMatrix();health=maxHealth=100;points=500;totalScore=0;kills=0;wave=0;waveDelay=7;toSpawn=0;runTime=0;lastHurt=-20;perkOwned.clear();grenades=3;doubleTime=0;grenadeTime=0;grenadeCooldown=0;inventory=freshInventory();reloadLeft=0;shotTimer=0;feetY=0;jumpV=0;grounded=true;damageFlash=nukeFlashTime=hitTime=0;shotId=0;weaponRecoil.reset();combatHud.reset();toastTime=0;setOpacity('toast',0);clearPlayInput();gunGroups.glock.userData.slideTime=0;updatePistolSlide(gunGroups.glock,0,inventory.glock.ammo);selectWeapon('glock');mode='paused';$('menu').classList.add('hidden');$('pause').classList.add('hidden');$('hud').classList.remove('hidden');if(capture)requestPointer();else{$('pauseTitle').textContent='The estate is ready.';$('pauseText').textContent=padPlay()?'Press A to begin. Menu pauses the game.':touchControls?.enabled?'Tap Play to begin. The II button pauses the game.':'Click Play to lock your mouse and begin. Esc releases it and pauses the game.';$('captureHelp').classList.add('hidden');$('resume').classList.remove('hidden');$('resume').textContent=padPlay()?'PRESS A TO PLAY →':touchControls?.enabled?'TAP TO PLAY →':'CLICK TO PLAY →';showPauseMenu();}announce('BLACKTHORN ESTATE','BUY PERKS. WATCH YOUR AMMO. SURVIVE.');nav.rebuild(player.x,player.z,player.y);updateHud();}
 let capturePending=false,captureWanted=false,captureAttempt=0,captureTimer=null,touchControls=null;
 function hasMouseLock(){return document.pointerLockElement===canvas;}
 function clearPlayInput(){mouseDown=false;aiming=false;keys.clear();touchControls?.reset();}
@@ -614,7 +735,7 @@ function resumeHint(){return padPlay()?'Press Menu, or A on Resume, to keep figh
 function pauseGame(){
   if(mode!=='playing'&&mode!=='capturing'&&mode!=='curse')return;
   touchControls?.setActive(false);
-  curseUI.close();curseUI.update('paused');
+  curseUI.update();
   mode='paused';clearPlayInput();releaseMouse();
   $('pauseTitle').textContent='Catch your breath.';
   $('pauseText').textContent=`Wave ${Math.max(wave,1)} · ${kills} kills · ${points.toLocaleString()} essence. ${resumeHint()}`;
@@ -623,7 +744,7 @@ function pauseGame(){
 }
 function showPauseMenu(){curseUI.updatePauseStats();$('pause').classList.remove('hidden');}
 function resumeGame(){if(mode==='paused')requestPointer();}
-function gameOver(){if(mode==='dead')return;curse.cancel();curseUI.close();curseUI.update('dead');worldEvents.endWave();eventVisuals.reset();grenadeThrow.cancel();grenadeCooldown=0;mode='dead';clearPlayInput();releaseMouse();$('captureHelp').classList.add('hidden');if(wave>bestWave||wave===bestWave&&kills>bestKills){bestWave=wave;bestKills=kills;try{localStorage.setItem('blackthorn-best',JSON.stringify({wave,kills}));}catch{}}$('pauseTitle').textContent='The house claims another.';$('pauseText').textContent=`Survived to wave ${wave} · ${kills} kills · ${totalScore.toLocaleString()} essence earned · Curse ${curse.rank} / ${curse.title}. Personal best: wave ${bestWave}.`;$('resume').classList.add('hidden');showPauseMenu();tone(90,2,.12,'sawtooth',25);leaderboard.endRun({score:totalScore,wave,kills,duration:runTime,curseRank:curse.rank});}
+function gameOver(){if(mode==='dead')return;curseUI.update();worldEvents.endWave();eventVisuals.reset();grenadeThrow.cancel();grenadeCooldown=0;mode='dead';clearPlayInput();releaseMouse();$('captureHelp').classList.add('hidden');if(wave>bestWave||wave===bestWave&&kills>bestKills){bestWave=wave;bestKills=kills;try{localStorage.setItem('blackthorn-best',JSON.stringify({wave,kills}));}catch{}}$('pauseTitle').textContent='The house claims another.';$('pauseText').textContent=`Survived to wave ${wave} · ${kills} kills · ${totalScore.toLocaleString()} essence earned · Curse ${curse.rank} / ${curse.title}. Personal best: wave ${bestWave}.`;$('resume').classList.add('hidden');showPauseMenu();tone(90,2,.12,'sawtooth',25);leaderboard.endRun({score:totalScore,wave,kills,duration:runTime,curseRank:curse.rank});}
 let guideReturnFocus=null;
 function openFieldGuide(trigger){
   pauseGame();guideReturnFocus=trigger;$('guide').classList.remove('hidden');
@@ -666,7 +787,7 @@ for(const type of ['keydown','mousedown','pointerdown'])window.addEventListener(
 },true);
 touchControls=createTouchControls({document,toggle:$('touchToggle'),enabled:controlScheme.scheme==='touch',onToggle:on=>controlScheme.choose(on?'touch':'standard'),actions:{
   look:touchLook,
-  fireStart(){if(mode!=='playing')return;if(clickRotundaBell())return;if(!mouseDown){mouseDown=true;shoot();}},
+  fireStart(){if(mode!=='playing')return;if(!mouseDown){mouseDown=true;shoot();}},
   fireEnd(){mouseDown=false;},
   aimToggle(){if(mode==='playing')aiming=!aiming;},
   jump(){if(mode==='playing'&&grounded){jumpV=4.2;grounded=false;}},
@@ -701,13 +822,12 @@ function updateControllerStatus(){
 }
 // Which menu the controller is driving, topmost first.
 function padLayer(){
-  for(const id of ['leaderboard','curseChoice','changelog','guide','estateMap','pause'])if(!$(id).classList.contains('hidden'))return $(id);
+  for(const id of ['leaderboard','changelog','guide','estateMap','pause'])if(!$(id).classList.contains('hidden'))return $(id);
   if(mode==='menu'&&!$('menu').classList.contains('hidden'))return $('menu');
   return null;
 }
 function padBack(){
   if(leaderboard.visible){leaderboard.close();return;}
-  if(curseUI.visible){curseUI.keydown({code:'Escape'});return;}
   if(changelog.visible){changelog.keydown({code:'Escape',preventDefault(){}});return;}
   if(!$('guide').classList.contains('hidden')){closeFieldGuide();return;}
   if(!$('estateMap').classList.contains('hidden')){closeEstateMap();return;}
@@ -715,7 +835,7 @@ function padBack(){
 }
 function padStart(){
   if(mode==='playing'){pauseGame();return;}
-  if(leaderboard.visible||curseUI.visible||changelog.visible||!$('guide').classList.contains('hidden')){padBack();return;}
+  if(leaderboard.visible||changelog.visible||!$('guide').classList.contains('hidden')){padBack();return;}
   if(!$('estateMap').classList.contains('hidden')){closeEstateMap();return;}
   if(mode==='paused'){resumeGame();return;}
   if(mode==='menu'&&!$('start').disabled)$('start').click();
@@ -737,7 +857,7 @@ function padOnTarget(){
 const gamepad=createGamepadControls({win:window,document,actions:{
   used(){return controlScheme.noteInput('controller')==='controller';},
   look(dx,dy){if(mode!=='playing')return;lookYaw-=dx;lookPitch=clamp(lookPitch-dy,-1.3,1.3);},
-  fireStart(){if(mode!=='playing')return;if(clickRotundaBell())return;if(!mouseDown){mouseDown=true;shoot();}},
+  fireStart(){if(mode!=='playing')return;if(!mouseDown){mouseDown=true;shoot();}},
   fireEnd(){mouseDown=false;},
   aim(on){if(mode==='playing'||!on)aiming=on;},
   jump(){if(mode==='playing'&&grounded){jumpV=4.2;grounded=false;}},
@@ -757,8 +877,8 @@ document.addEventListener('pointerlockchange',()=>{
 document.addEventListener('pointerlockerror',()=>captureFailed(captureAttempt));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseGame();});
 document.addEventListener('mousemove',e=>{if(mode==='playing'&&pointer&&hasMouseLock()&&$('guide').classList.contains('hidden')){const sens=Number($('sensitivity').value)*.002*(aiming?.62/(weapons[weapon].zoom||1):1);lookYaw-=e.movementX*sens;lookPitch=clamp(lookPitch-e.movementY*sens,-1.3,1.3);}});
-canvas.addEventListener('mousedown',e=>{if(mode!=='playing'||directControls())return;if(!hasMouseLock()){pauseGame();requestPointer();return;}e.preventDefault?.();if(e.button===0&&clickRotundaBell())return;if(e.button===0&&!mouseDown){mouseDown=true;shoot();}if(e.button===2)aiming=true;});document.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;if(e.button===2)aiming=false;});canvas.addEventListener('contextmenu',e=>e.preventDefault());
-document.addEventListener('keydown',e=>{if(curseUI.visible){curseUI.keydown(e);return;}if(changelog.visible){changelog.keydown(e);return;}if(leaderboard.visible){if(e.code==='Escape'){e.preventDefault();leaderboard.close();}return;}if(!$('guide').classList.contains('hidden')){fieldGuideKeydown(e);return;}if(['INPUT','TEXTAREA'].includes(e.target?.tagName))return;if(e.code==='KeyM'){e.preventDefault();if(e.repeat)return;if($('estateMap').classList.contains('hidden'))openEstateMap();else closeEstateMap();return;}if(e.code==='Escape'&&!$('estateMap').classList.contains('hidden')){closeEstateMap(false);return;}if(e.code==='Escape'){pauseGame();return;}if(mode!=='playing'||!(hasMouseLock()||directControls()))return;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.repeat)return;if(e.code==='KeyR')reload();if(e.code==='KeyE')interact();if(e.code==='KeyF')toggleFlashlight();if(e.code==='KeyG')grenade();if(e.code==='Digit1')selectWeapon('glock');if(e.code==='Digit2')selectWeapon('shotgun');if(e.code==='Digit3')selectWeapon('smg');if(e.code==='Digit4')selectWeapon('lmg');if(e.code==='Digit5')selectWeapon('bushmaster');if(e.code==='Digit6')selectWeapon('rifle');if(e.code==='Space'&&grounded){jumpV=4.2;grounded=false;}});document.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>{if((mode==='playing'||mode==='curse')&&!capturePending)pauseGame();});
+canvas.addEventListener('mousedown',e=>{if(mode!=='playing'||directControls())return;if(!hasMouseLock()){pauseGame();requestPointer();return;}e.preventDefault?.();if(e.button===0&&!mouseDown){mouseDown=true;shoot();}if(e.button===2)aiming=true;});document.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;if(e.button===2)aiming=false;});canvas.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('keydown',e=>{if(changelog.visible){changelog.keydown(e);return;}if(leaderboard.visible){if(e.code==='Escape'){e.preventDefault();leaderboard.close();}return;}if(!$('guide').classList.contains('hidden')){fieldGuideKeydown(e);return;}if(['INPUT','TEXTAREA'].includes(e.target?.tagName))return;if(e.code==='KeyM'){e.preventDefault();if(e.repeat)return;if($('estateMap').classList.contains('hidden'))openEstateMap();else closeEstateMap();return;}if(e.code==='Escape'&&!$('estateMap').classList.contains('hidden')){closeEstateMap(false);return;}if(e.code==='Escape'){pauseGame();return;}if(mode!=='playing'||!(hasMouseLock()||directControls()))return;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.repeat)return;if(e.code==='KeyR')reload();if(e.code==='KeyE')interact();if(e.code==='KeyF')toggleFlashlight();if(e.code==='KeyG')grenade();if(e.code==='Digit1')selectWeapon('glock');if(e.code==='Digit2')selectWeapon('shotgun');if(e.code==='Digit3')selectWeapon('smg');if(e.code==='Digit4')selectWeapon('lmg');if(e.code==='Digit5')selectWeapon('bushmaster');if(e.code==='Digit6')selectWeapon('rifle');if(e.code==='Space'&&grounded){jumpV=4.2;grounded=false;}});document.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>{if((mode==='playing'||mode==='curse')&&!capturePending)pauseGame();});
 let mapWasPlaying=false;
 function closeEstateMap(restorePlay=true){if($('estateMap').classList.contains('hidden'))return;const resume=mapWasPlaying&&restorePlay;mapWasPlaying=false;$('estateMap').classList.add('hidden');if(resume)resumeGame();}
 function openEstateMap(){if(!['playing','paused'].includes(mode))return;mapWasPlaying=mode==='playing';if(mapWasPlaying)pauseGame();(player.y<-.3?drawCellarMap:player.y>2.15?drawUpperMap:drawEstateMap)($('estateMapCanvas'),player,interactables,lookYaw);$('estateMap').classList.remove('hidden');$('closeEstateMap').focus();}
@@ -792,16 +912,18 @@ function shoulderNeighbour(e,dx,dz,dt){
 }
 function updateEnemies(dt){crowd.plan(player.y);for(let i=zombies.length-1;i>=0;i--){const e=zombies[i];
 if(e.dead){if(updateZombieDeath(e,dt,corpseBlocked,corpseFloor)){world.remove(e.group);disposeEnemy(e);zombies.splice(i,1);}continue;}
+if(e.waking){animateZombie(e,dt,99,0);continue;}
+if(e.warCry>0){e.warCry-=dt;if(e.warCry<=0)endWarCry(e);}
 if(e.emergeLeft>0){
   e.emergeLeft=Math.max(0,e.emergeLeft-dt);
-  const floor=enemyFloorHeight(e.walkPos.x,e.walkPos.z)-.02;e.group.position.y=floor-1.65*(e.emergeLeft/1.05)**2;
+  const floor=enemyFloorHeight(e.walkPos.x,e.walkPos.z)-.02;e.group.position.y=floor-(e.emergeDepth||1.65)*(e.emergeLeft/(e.emergeTime||1.05))**2;
   animateZombie(e,dt,99,0);continue;
 }
 advanceStagger(e,dt);
 const routes=e.brute?nav.brutes:nav,p=e.walkPos,dist=Math.hypot(player.x-p.x,player.z-p.z),oldX=p.x,oldZ=p.z,sameFloor=Math.abs(player.y-p.y)<.55;
 if(e.brute){
   // Duck ahead of the upper landing and mausoleum, before their lower headers.
-  const crouch=bruteCrouchAt(p.x,p.z,p.y)?1:0;e.crouch=T.MathUtils.damp(e.crouch||0,crouch,12,dt);
+  const crouch=bruteCrouchAt(p.x,p.z,p.y)?1:0;e.crouch=T.MathUtils.damp(e.crouch||0,crouch,12,dt);if(e.boss)e.crouch=Math.min(e.crouch,.3);/* Sir Blackthorn only stoops; his walker rig clears the tomb door. */
   e.bodyHeight=crouch||e.crouch>.02?BRUTE.crouchHeight:BRUTE.height;
 }
 e.pathTimer-=dt;
@@ -818,6 +940,7 @@ if(e.pathTimer<=0){
   }
   e.pathTimer=.22+(e.phase%1)*.10;
 }
+const casting=e.boss&&updateBlackthorn(e,dt,dist,sameFloor);
 let tx=player.x,tz=player.z;
 if((dist>1.3||!sameFloor)&&(!sameFloor||!e.clearPath)){
   if(!e.waypoint||Math.hypot(e.waypoint.x-p.x,e.waypoint.z-p.z)<.18)e.waypoint=routes.direction(p.x,p.z,p.y,e.navigation);
@@ -830,9 +953,9 @@ if((dist>1.3||!sameFloor)&&(!sameFloor||!e.clearPath)){
   tx=fx;tz=fz;
 }
 let dx=tx-p.x,dz=tz-p.z,len=Math.hypot(dx,dz),heading=Math.atan2(player.x-p.x,player.z-p.z);
-if(len>.1&&(dist>1.03||!sameFloor)){
+if(len>.1&&(dist>1.03||!sameFloor)&&!casting){
   dx/=len;dz/=len;crowd.steer(e,dx,dz,elapsed);dx=e.steerX;dz=e.steerZ;
-  const pace=(e.staggerLeft>0?0:1)*(e.crawling?(e.crawlDrop>0?0:CRAWL.speed):1)*(frenzyWave===wave&&wave?1.4:1)*(e.attackTime>=0?(e.dog?.65:.4):1)*(e.legHit>0?.55:1),step=e.speed*worldEvents.speedMultiplier(e)*dt*pace;
+  const pace=(e.staggerLeft>0?0:1)*(e.crawling?(e.crawlDrop>0?0:CRAWL.speed):1)*(frenzyWave===wave&&wave?1.4:1)*(e.attackTime>=0?(e.dog?.65:.4):1)*(e.legHit>0?.55:1)*(e.warCry>0?BOSS.cry.speed:1),step=e.speed*worldEvents.speedMultiplier(e)*dt*pace;
   moveWithCollision(p,dx*step,dz*step,e.radius,e);
   const moved=Math.hypot(p.x-oldX,p.z-oldZ);
   e.stuck=moved<step*.15?e.stuck+dt:0;
@@ -847,9 +970,9 @@ if(len>.1&&(dist>1.03||!sameFloor)){
 }
 
 const turn=Math.atan2(Math.sin(heading-e.group.rotation.y),Math.cos(heading-e.group.rotation.y));e.group.rotation.y+=turn*(1-Math.exp(-dt*8));
-e.floorY=p.y;e.group.position.set(p.x,Math.abs(p.y)>.1?p.y-.02:enemyFloorHeight(p.x,p.z)-.02,p.z);e.attack-=dt*worldEvents.attackRate(e);const contact=(e.dog?animateZombieDog:animateZombie)(e,dt,sameFloor?dist:99,Math.hypot(p.x-oldX,p.z-oldZ));
-if(contact&&!(e.staggerLeft>0)&&dist<1.7&&Math.abs(player.y-p.y)<.7&&hasClearPath(p.x,p.z,player.x,player.z,p.y,player.y)){
-hurtPlayer(waveConfig(wave).damage*(e.feral?FERAL.damageMultiplier:e.dog?.85:e.brute?1.4:1)*(e.enraged?ENRAGE.damageMultiplier:1),p);noise(.15,.08,600);tone(70,.14,.06,'sine');if(health<=0)gameOver();}
+e.floorY=p.y;e.group.position.set(p.x,Math.abs(p.y)>.1?p.y-.02:enemyFloorHeight(p.x,p.z)-.02,p.z);e.attack-=dt*worldEvents.attackRate(e);const contact=(e.dog?animateZombieDog:animateZombie)(e,dt,sameFloor?dist:99,Math.hypot(p.x-oldX,p.z-oldZ));if(casting)poseBlackthorn(e);
+if(contact&&!casting&&!(e.staggerLeft>0)&&dist<1.7&&Math.abs(player.y-p.y)<.7&&hasClearPath(p.x,p.z,player.x,player.z,p.y,player.y)){
+hurtPlayer(waveConfig(wave).damage*(e.boss?BOSS.meleeMultiplier:e.warden?1.4*WARDEN.damageMultiplier:e.feral?FERAL.damageMultiplier:e.dog?.85:e.brute?1.4:1)*(e.enraged&&!e.elite?ENRAGE.damageMultiplier:1)*(e.warCry>0?BOSS.cry.damage:1),p);noise(.15,.08,600);tone(70,.14,.06,'sine');if(health<=0)gameOver();}
 e.groan-=dt;if(e.groan<=0){if(dist<12)tone(e.feral?210:e.rareDog?155:e.dog?105:e.brute?45:rand(60,100),e.dog?.22:.6,.035*(1-dist/14),'sawtooth',35);e.groan=rand(6,15);}}}
 function bellaBite(enemy,damage,direction){damageEnemy(enemy,damage,false,{direction:direction.clone(),part:enemy.dog?'head':'leg',force:.45,source:'Bella'});tone(460,.08,.018,'triangle',620);}
 const effectNext=new T.Vector3();
@@ -859,15 +982,14 @@ function updatePickups(dt){for(let i=pickups.length-1;i>=0;i--){const p=pickups[
 const radar=$('radar'),rx=radar.getContext('2d');function drawRadar(){rx.clearRect(0,0,radar.width,radar.height);rx.save();rx.scale(radar.width/150,radar.height/150);rx.save();rx.translate(75,75);rx.strokeStyle='#a8b49c35';rx.lineWidth=1;rx.beginPath();rx.arc(0,0,47,0,Math.PI*2);rx.stroke();rx.rotate(-lookYaw);const sc=3;rx.strokeStyle='#a1ada354';for(const c of colliders){if(c.disabled)continue;if(player.y+.06>=(c.maxY??3.8)||player.y+1.8<=(c.minY??0))continue;if(c.w<1&&c.d<1)continue;const x=(c.x-player.x)*sc,z=(c.z-player.z)*sc;if(Math.hypot(x,z)<95)rx.strokeRect(x-c.w*sc/2,z-c.d*sc/2,c.w*sc,c.d*sc);}for(const e of zombies){if(e.dead||Math.abs(e.floorY-player.y)>1.8)continue;const x=(e.group.position.x-player.x)*sc,z=(e.group.position.z-player.z)*sc;if(Math.hypot(x,z)<68){rx.fillStyle=e.enraged?'#ff3925':e.feral?'#b6ff4e':e.rareDog?'#82edf3':e.dog?'#bd9ddc':e.brute?'#e4a85b':'#ca6b52';rx.beginPath();rx.arc(x,z,e.brute?3:2,0,7);rx.fill();}}for(const s of interactables){if(s.used||s.locked)continue;if(Math.abs((s.y||0)-player.y)>1.8)continue;const x=(s.x-player.x)*sc,z=(s.z-player.z)*sc;if(Math.hypot(x,z)<68){rx.fillStyle=s.hex||'#baaa76';rx.fillRect(x-2,z-2,4,4);}}if(bella.unlocked&&Math.abs(bella.pos.y-player.y)<1.8){const x=(bella.pos.x-player.x)*sc,z=(bella.pos.z-player.z)*sc;if(Math.hypot(x,z)<68){rx.fillStyle='#9af0d6';rx.beginPath();rx.arc(x,z,3,0,7);rx.fill();rx.font='bold 8px Arial';rx.fillText('B',x+4,z+3);}}rx.restore();rx.fillStyle='#d8d9bf';rx.beginPath();rx.moveTo(75,69);rx.lineTo(71,80);rx.lineTo(79,80);rx.closePath();rx.fill();rx.fillStyle='#8b9f95';rx.font='8px Arial';rx.fillText('N',72,13);rx.restore();}
 let hudTick=0,frameCount=0,fpsTime=0,footstepTime=0;
 function tick(now){requestAnimationFrame(tick);gamepad.poll(Math.min(Math.max(0,(now-lastTime)/1000),.05),{enabled:padPlay(),playing:mode==='playing'&&$('guide').classList.contains('hidden'),layer:padLayer(),sensitivity:Number($('sensitivity').value),aiming:aiming&&!grenadeThrow.active,zoom:weapons[weapon].zoom||1,onTarget:mode==='playing'&&padOnTarget()});updateControllerStatus();document.body.classList.toggle('pad-playing',padPlay()&&mode==='playing');if(mode==='playing'&&!directControls()&&!hasMouseLock())pauseGame();touchControls?.setActive(mode==='playing'&&$('guide').classList.contains('hidden'));const frameSeconds=Math.max(0,(now-lastTime)/1000),dt=Math.min(frameSeconds,.05);lastTime=now;elapsed+=dt;fpsTime+=frameSeconds;frameCount++;if(mode==='playing'&&!document.hidden){const before=renderScale.scale;renderScale.sample(frameSeconds);if(renderScale.scale!==before)resize();}else renderScale.interrupt();if(fpsTime>1){$('fps').textContent=`${Math.round(frameCount/fpsTime)} FPS · ${$('quality').value.toUpperCase()}${renderScale.scale<1?` · ${Math.round(renderScale.scale*100)}% RES`:''}`;fpsTime=0;frameCount=0;}
-if((mode==='playing'||mode==='curse')&&curse.pending){if(curse.update(frameSeconds))resolveCurseChoice('timeout');curseUI.update(mode);}
 if(mode==='curse')runTime+=dt;
 if(mode==='playing'){weaponRecoil.update(dt);cellar.update(dt);graveyard.update(dt);shed.update(dt);runTime+=dt;shotTimer=Math.max(0,shotTimer-dt);grenadeCooldown=Math.max(0,grenadeCooldown-dt);if(mouseDown&&!weapons[weapon].semiAuto)shoot();if(reloadLeft>0){reloadLeft-=dt;if(reloadLeft<=0){reloadLeft=0;finishReload();}}
 const stick=touchControls?.active?touchControls.move:padPlay()&&gamepad.connected?gamepad.move:null,moving=keys.has('KeyW')||keys.has('KeyS')||keys.has('KeyA')||keys.has('KeyD')||!!(stick&&(stick.x||stick.z));const aimingWeapon=aiming&&!grenadeThrow.active&&reloadLeft===0;const sprint=(keys.has('ShiftLeft')||keys.has('ShiftRight')||!!touchControls?.sprint||(padPlay()&&gamepad.sprint))&&!aimingWeapon&&!mouseDown;let x=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0),z=(keys.has('KeyS')?1:0)-(keys.has('KeyW')?1:0);if(stick&&!x&&!z){x=stick.x;z=stick.z;}const len=Math.hypot(x,z);if(len){const norm=sprint?len:Math.max(1,len);x/=norm;z/=norm;const speed=(sprint?5.6:aimingWeapon?2.1:3.6)*(perkOwned.has('stride')?1.3:1);moveWithCollision(player,(x*Math.cos(lookYaw)+z*Math.sin(lookYaw))*speed*dt,(-x*Math.sin(lookYaw)+z*Math.cos(lookYaw))*speed*dt,.32);walkPhase+=dt*(sprint?13:9);footstepTime+=dt;if(footstepTime>(sprint?.27:.43)&&feetY===0){tone(70,.065,.032,'sine',45);noise(.035,.015,350);footstepTime=0;}}
-const vertical=updateActorHeight(player,jumpV,dt,grounded,1.8,PLAYER_RADIUS,colliders);jumpV=vertical.velocity;grounded=vertical.grounded;feetY=grounded?0:Math.max(0,player.y-supportBelow(player.x,player.z,player.y));camera.position.set(player.x,1.68+player.y+(moving&&grounded?Math.sin(walkPhase)*.025:0),player.z);camera.rotation.set(clamp(lookPitch+weaponRecoil.pitch,-1.3,1.3),lookYaw+weaponRecoil.yaw,0);camera.fov=T.MathUtils.lerp(camera.fov,aimingWeapon?weaponAimFov(weapon):sprint?81:75,dt*9);camera.updateProjectionMatrix();weaponViewFov=weapons[weapon].zoom?T.MathUtils.lerp(weaponViewFov,aimingWeapon?(gunGroups[weapon].userData.optic.viewFov??16):sprint?81:75,dt*9):camera.fov;navTimer-=dt;if(navTimer<=0){nav.rebuild(player.x,player.z,player.y);navTimer=.6;}worldEvents.update(dt);eventVisuals.update(worldEvents);updateEnemies(dt);if(mode==='playing'){bella.update(dt,{player,yaw:lookYaw,enemies:zombies,onBite:bellaBite,visualFloor:enemyFloorHeight});grenadeThrow.update(dt,releaseGrenade);}updateEffects(dt);updatePickups(dt);
+const vertical=updateActorHeight(player,jumpV,dt,grounded,1.8,PLAYER_RADIUS,colliders);jumpV=vertical.velocity;grounded=vertical.grounded;feetY=grounded?0:Math.max(0,player.y-supportBelow(player.x,player.z,player.y));camera.position.set(player.x,1.68+player.y+(moving&&grounded?Math.sin(walkPhase)*.025:0),player.z);camera.rotation.set(clamp(lookPitch+weaponRecoil.pitch,-1.3,1.3),lookYaw+weaponRecoil.yaw,0);camera.fov=T.MathUtils.lerp(camera.fov,aimingWeapon?weaponAimFov(weapon):sprint?81:75,dt*9);camera.updateProjectionMatrix();weaponViewFov=weapons[weapon].zoom?T.MathUtils.lerp(weaponViewFov,aimingWeapon?(gunGroups[weapon].userData.optic.viewFov??16):sprint?81:75,dt*9):camera.fov;navTimer-=dt;if(navTimer<=0){nav.rebuild(player.x,player.z,player.y);navTimer=.6;}worldEvents.update(dt);eventVisuals.update(worldEvents);if(boss.stage==='waking')updateWaking(dt);updateEnemies(dt);bossFx.update(dt,{hit:lanceHit,blocked:lanceBlocked});updateBossHud();if(mode==='playing'){bella.update(dt,{player,yaw:lookYaw,enemies:zombies,onBite:bellaBite,visualFloor:enemyFloorHeight});grenadeThrow.update(dt,releaseGrenade);}updateEffects(dt);updatePickups(dt);
 if(mode==='playing'&&armorTier>=2&&armor<armorMax){const rank=armorRank(armorTier),regenSeconds=rank.regenDelay===0?dt:Math.min(dt,Math.max(0,runTime-lastHurt-rank.regenDelay));armor=Math.min(armorMax,armor+regenSeconds*rank.regenRate);}
 if(runTime-lastHurt>6&&health<maxHealth)health=Math.min(maxHealth,health+dt*11);doubleTime=Math.max(0,doubleTime-dt);grenadeTime=Math.max(0,grenadeTime-dt);
-if(mode==='playing'){if(curse.pending){/* The bell owns this intermission; never pay the clear bonus twice. */}else if(waveDelay>0){waveDelay-=dt;if(waveDelay<=1e-9)startWave();}else{spawnTimer-=dt;if(toSpawn>0&&spawnTimer<=0&&zombies.filter(e=>!e.dead).length<CURSE_RULES.aliveLimit){spawnEnemy();spawnTimer=waveConfig(wave).interval*(frenzyWave===wave?.4:1);}if(toSpawn===0&&worldEvents.pendingSpawns===0&&!zombies.some(e=>!e.dead)){if(wave===5&&!waveFiveFinale){beginWaveFiveFinale();}else{completeWave();}}}}
-const s=closestStation(),interaction=s?`<strong>${padPlay()?'B':touchControls?.enabled?'USE':'E'}</strong> ${s.name} <span style="color:#d4b77a">${s.type==='bell'?(curse.pending?(padPlay()?'B · CHOOSE':'CLICK / E · CHOOSE'):'DORMANT'):s.type==='mausoleumDoor'?(graveyard.open?'OPEN':'CLEAR WAVE 20'):s.type==='cellarDoor'?(isCellarOpen()?'OPEN':'WAVE 10'):s.type==='shedDoor'?(shed.open?'OPEN':'WAVE 7'):s.shedWeapon&&s.purchased?'OWNED':s.type==='upgrade'&&s.forgeMaximum?'MAX RANK':(s.type==='perk'&&perkOwned.has(s.id))||(s.type==='armor'&&s.used)?'ACTIVE':s.price===0?'FREE':s.price.toLocaleString()+' ESSENCE'}</span><small>${stationDescription(s)}</small>`:'';setMarkup('interaction',interaction);touchControls?.update({playing:true,aiming,canInteract:!!s,flashlight:flashlightOn,canSwap:WEAPON_CYCLE.filter(k=>inventory[k]?.owned).length>1});
+if(mode==='playing'){if(waveDelay>0){waveDelay-=dt;if(waveDelay<=1e-9)startWave();}else{spawnTimer-=dt;if(toSpawn>0&&spawnTimer<=0&&!blackthornHoldsSpawns()&&zombies.filter(e=>!e.dead).length<CURSE_RULES.aliveLimit){spawnEnemy();spawnTimer=waveConfig(wave).interval*(frenzyWave===wave?.4:1);}if(toSpawn===0&&worldEvents.pendingSpawns===0&&boss.stage!=='waking'&&!zombies.some(e=>!e.dead)){if(wave===5&&!waveFiveFinale){beginWaveFiveFinale();}else{completeWave();}}}}
+const s=closestStation(),interaction=s?`<strong>${padPlay()?'B':touchControls?.enabled?'USE':'E'}</strong> ${s.name} <span style="color:#d4b77a">${s.type==='bell'?'DORMANT':s.type==='mausoleumDoor'?(graveyard.open?'OPEN':'CLEAR WAVE 20'):s.type==='cellarDoor'?(isCellarOpen()?'OPEN':'WAVE 10'):s.type==='shedDoor'?(shed.open?'OPEN':'WAVE 7'):s.shedWeapon&&s.purchased?'OWNED':s.type==='upgrade'&&s.forgeMaximum?'MAX RANK':(s.type==='perk'&&perkOwned.has(s.id))||(s.type==='armor'&&s.used)?'ACTIVE':s.price===0?'FREE':s.price.toLocaleString()+' ESSENCE'}</span><small>${stationDescription(s)}</small>`:'';setMarkup('interaction',interaction);touchControls?.update({playing:true,aiming,canInteract:!!s,flashlight:flashlightOn,canSwap:WEAPON_CYCLE.filter(k=>inventory[k]?.owned).length>1});
 const indoors=player.y<-.3||inMausoleum(player.x,player.z)||inShed(player.x,player.z)||!!roomAt(player.x,player.z);const flight=stairAt(player.x,player.z);const location=inShed(player.x,player.z)&&player.y>-.3?'GROUNDSKEEPER’S SHED':player.y<-.3?'STORM CELLAR / UNDERGROUND ARMORY':flight?.side?upperLocation(player.x,player.z):player.y>2.15?'2ND FLOOR / '+upperLocation(player.x,player.z):flight?'GRAND STAIRCASE':estateLocation(player.x,player.z);const locationMarkup=`BLACKTHORN ESTATE <span> / ${location}</span>`;setMarkup('location',locationMarkup);rain.visible=!indoors;gunRoot.visible=true;
 scene.fog.density=baseFogDensity+(indoors?0:worldEvents.fogStrength()*(inGraveyard(player.x,player.z)?.049:.038));setOpacity('eventPulse',worldEvents.active('surge')?Math.max(0,1-worldEvents.age/1.4)*.24:0);
 updatePistolSlide(gunGroups.glock,dt,inventory.glock.ammo);

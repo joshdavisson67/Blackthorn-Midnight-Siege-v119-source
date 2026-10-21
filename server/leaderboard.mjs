@@ -1,4 +1,4 @@
-import {curseTitle,maxCurseRank} from '../public/game/curse.mjs';
+import {curseTitle,MAX_CURSE_RANK} from '../public/game/curse.mjs';
 const columns='id,name,score,wave,kills,duration,version,curse_rank,curse_title,created_at';
 const ordering='score DESC,wave DESC,kills DESC,created_at ASC,id ASC';
 function json(value,status=200){return Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
@@ -20,7 +20,7 @@ function validRun(value){
   // Older releases and locally retained retries have no curse data. Titles are
   // canonical server values; a client cannot submit a different rank title.
   const curseRank=value.curseRank??0;
-  if(!Number.isSafeInteger(curseRank)||curseRank<0||curseRank>maxCurseRank(wave))return null;
+  if(!Number.isSafeInteger(curseRank)||curseRank<0||curseRank>MAX_CURSE_RANK)return null;
   return {id:id.toLowerCase(),name,score,wave,kills,duration,version,curseRank,curseTitle:curseTitle(curseRank)};
 }
 export async function getLeaderboard(request,db){
