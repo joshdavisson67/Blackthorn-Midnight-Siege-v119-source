@@ -1,6 +1,6 @@
 import * as T from './three.module.js';
 import {tiledBox} from './graphics.mjs?v=129';
-import {UPPER_CEILING} from './vertical.mjs?v=116';
+import {UPPER_CEILING} from './vertical.mjs?v=131';
 import {columnSurfaceGeometry} from './column-surfaces.mjs?v=93';
 
 const FRONT=12,BACK=-84,SIDE=42;

@@ -175,6 +175,8 @@ verifyDogs(qa,frames);
 
 const {verifyBella}=await import('./bella.mjs');
 verifyBella(qa,frames,listeners,elements,document);
+const {verifyOliviaEasterEgg}=await import('./olivia.mjs');
+verifyOliviaEasterEgg(qa,frames,listeners,elements);
 
 const {verifyUpstairsCleanup}=await import('./upstairs-cleanup.mjs');
 verifyUpstairsCleanup(qa);

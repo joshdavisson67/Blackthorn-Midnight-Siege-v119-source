@@ -1,6 +1,6 @@
 import * as T from './three.module.js';
 import {columnSurfaceGeometry} from './column-surfaces.mjs?v=93';
-import {scatterGrass,crossedGrassGeometry,isLawn,lawnCharacter,GRASS_TUFTS} from './grounds.mjs?v=126';
+import {scatterGrass,crossedGrassGeometry,isLawn,lawnCharacter,GRASS_TUFTS} from './grounds.mjs?v=131';
 export function addEstateDetail({scene,world,M,box,mesh,mistTex,fire,colliders,interactables,trees=[]}){let rseed=34213;const r=()=>{rseed=(rseed*1664525+1013904223)>>>0;return rseed/4294967296;};const mid=(a,b)=>a+r()*(b-a);
 // Curved stonework and coffered ceilings catch both moonlight and candlelight.
 const profile=[[.4,0],[.4,.12],[.34,.16],[.34,.3],[.29,.38],[.25,.6],[.25,5.9],[.29,6.1],[.4,6.25],[.4,6.42]].map(([radius,y])=>new T.Vector2(radius,y));

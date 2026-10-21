@@ -434,3 +434,6 @@ body.pad-playing{cursor:none}
 #bossState{font-size:9px;letter-spacing:2px;color:#c9b8a0}
 @media(max-height:850px){#menu .menuCurse{padding:7px 10px}#menu .menuCurse .menuCurseSeal{width:30px;height:30px}}
 @media(max-width:750px){#bossHud{top:34px;width:58vw}#bossHud small{font-size:10px;letter-spacing:2.5px}.menuCurse{margin-top:8px;padding:7px 9px}.menuCurseSeal{width:28px;height:28px}#curseRankInfo{display:none}}
+
+/* Bone chips (v131 Easter egg). */
+#boneHud{margin-top:6px;color:#e9dfc8;font-size:11px;letter-spacing:1.5px}

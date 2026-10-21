@@ -50,7 +50,7 @@ export function verifyStairs(qa,frames,listeners,elements){
   }
   console.log(`PASS: ${jumps.length} real-keyboard balcony jumps clear the lowered railing, land on the first floor and retain walking guards at 30/60/144 FPS.`);
 
-  const rails=s.colliders.filter(c=>c.railing&&!c.exteriorStairs),stairRails=rails.filter(c=>c.slope!==undefined);
+  const rails=s.colliders.filter(c=>c.railing&&!c.exteriorStairs&&!c.attic)/* Olivia's attic rail is its own height (v131) */,stairRails=rails.filter(c=>c.slope!==undefined);
   assert.equal(stairRails.length,2,'Each stair banister has one continuous sloped collider');
   for(const c of rails)assert(Math.abs((c.slope===undefined?c.maxY-c.minY:c.topY-c.baseY)-.72)<1e-6,'Stair and balcony rail tops have the same height');
   // Retained source meshes have the same transforms used by static batching.

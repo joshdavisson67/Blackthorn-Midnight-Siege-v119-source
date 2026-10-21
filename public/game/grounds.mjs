@@ -3,7 +3,7 @@ import {MANSION,ESTATE_BOUNDS} from './estate-layout.mjs?v=28';
 import {GRAVEYARD,MAUSOLEUM,GRAVE_PLOTS} from './graveyard-layout.mjs?v=28';
 import {CELLAR} from './cellar-layout.mjs?v=28';
 import {SHED,SHED_PATH} from './shed-layout.mjs?v=76';
-import {EXTERIOR_STAIRS} from './vertical.mjs?v=116';
+import {EXTERIOR_STAIRS} from './vertical.mjs?v=131';
 
 // Shared by the paving meshes and foliage placement so grass cannot cover a path.
 export const ESTATE_PATHS=[
