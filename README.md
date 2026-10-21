@@ -27,6 +27,19 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Easter egg: Olivia and the rat dragon (version 131)
+
+*Spoilers.* Every enemy Bella kills drops a **bone chip**: a small, spinning bone that lasts 30 s. Your own kills never drop one. A small tally appears under the wave counter once you have a chip.
+
+- **25 chips** make a hatch creak open in the ceiling of the upstairs **west bedchamber**, where Bella's kennel is. Pull-down stairs drop tread by tread through a hole cut in the wing's ceiling and roof.
+- **The attic** is a small garret on the west wing roof. You can see it from outside, with a softly glowing window. Inside are floorboards, a rug, fairy lights, posters, a toy chest and a little lamp, and **Olivia**: a little girl sitting cross-legged on a beanbag, playing a game on a tablet with a controller in her lap. She looks up when you come near.
+- **Turn in 25 chips** and she makes Bella a **fire-breathing rat dragon**: crimson bat wings that beat as she runs and flare when she breathes, a segmented spiked dragon tail with a spade tip in place of her curly one, and little horns.
+  - **Fire breath:** when an enemy is within 4.6 m she breathes a 1.2 s cone of fire (every 2.4 s), burning every enemy in the cone four times a second for (40 + 7 × wave) damage per second. Walls stop it.
+  - **Still a good dog:** she bites between breaths. The upgrade lasts the rest of the run, and her kills stop dropping chips.
+- **Climbing:** Bella and ordinary undead (walkers, hounds, ferals) can follow you up and down the narrow stairs. Brutes, Gravewardens and Sir Blackthorn are too tall. The stair and attic aren't on the navigation grid, so climbers get a short steering route: around the side of the flight (never underneath it), line up at the foot, climb, and reverse the route to come down.
+- **Secret:** Olivia never appears on the floor map or radar, and the field guide doesn't mention any of this.
+- **Resets:** every new run seals the hatch, clears the chips and returns Bella to a plain Maltipoo.
+
 ## Sir Blackthorn and the curse ladder (version 130)
 
 **The curse is now a ladder.** The Great Rotunda bell no longer asks you to embrace or resist every five waves. Instead you pick your curse rank on the title screen, under Enter the Estate, and it applies to the whole run from wave 1. The selector lists every rank you've unlocked plus the next one (locked), with a one-line summary of the chosen rank's effects. Rank effects are unchanged. Unlocks and your last choice are saved on this device (`blackthorn-curse-unlocked`, `blackthorn-curse-selected`). The bell stays as the rotunda's landmark and tolls when the boss falls. The leaderboard still records each run's rank; the server now accepts any rank up to the ladder's top (25) at any wave.

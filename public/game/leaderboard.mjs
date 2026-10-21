@@ -1,5 +1,5 @@
 const PENDING_KEY='blackthorn-leaderboard-pending-v1',QUEUE_KEY='blackthorn-leaderboard-queue-v1',NAME_KEY='blackthorn-leaderboard-name';
-import {CURRENT_VERSION} from './version.mjs?v=130';
+import {CURRENT_VERSION} from './version.mjs?v=131';
 import {curseTitle} from './curse.mjs?v=130';
 export const GAME_VERSION=String(CURRENT_VERSION);
 export const REFRESH_INTERVAL=15000;

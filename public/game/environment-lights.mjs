@@ -17,7 +17,7 @@ export function createEnvironmentLights(scene,groundFixtures,upperFixtures,light
     light.visible=false;light.castShadow=false;
   }
   for(const f of groundFixtures)sources.push({position:new T.Vector3(f.x,f.y,f.z),color:new T.Color(f.color),intensity:f.intensity??lampIntensity(f.y-(f.floor??0)),distance:f.distance??18,decay:1.5,cellar:!!f.cellar});
-  for(const f of upperFixtures)sources.push({position:new T.Vector3(f.x,f.y,f.z),color:new T.Color(0xffc892),intensity:f.intensity??13,distance:12,decay:1.5,upper:true});
+  for(const f of upperFixtures)sources.push({position:new T.Vector3(f.x,f.y,f.z),color:new T.Color(f.color??0xffc892),intensity:f.intensity??13,distance:f.distance??12,decay:1.5,upper:true});
   const lights=Array.from({length:count},()=>{const light=new T.PointLight(0xffffff,0,18,1.5);scene.add(light);lighting.register(light);return light;});
   const slots=new Array(count).fill(null),chosen=new Array(count),scores=new Float64Array(count),lastPosition=new T.Vector3(Infinity,Infinity,Infinity);
   let next=-1,lastUpper=false;

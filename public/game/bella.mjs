@@ -1,9 +1,56 @@
 import * as T from './three.module.js';
 import {isBlocked} from './core.mjs?v=116';
-import {UPPER_Y,moveActor,updateActorHeight,supportBelow,stairHeight} from './vertical.mjs?v=116';
+import {UPPER_Y,moveActor,updateActorHeight,supportBelow,stairHeight} from './vertical.mjs?v=131';
 import {cellarStairHeight} from './cellar-layout.mjs?v=28';
 
-export const BELLA=Object.freeze({price:670,radius:12*.9144,bodyRadius:.22,height:.82,damage:48,biteInterval:.9,biteReach:.95,x:-30.3,z:-10.8,y:UPPER_Y});
+export const BELLA=Object.freeze({price:670,radius:12*.9144,bodyRadius:.22,height:.82,damage:48,biteInterval:.9,biteReach:.95,x:-30.3,z:-10.8,y:UPPER_Y,
+  // Rat dragon (v131 Easter egg): a cone of fire, pulsed so every enemy in it
+  // burns four times a second; the game decides how hard each pulse hits.
+  fire:Object.freeze({range:4.6,angle:.5,duration:1.2,cooldown:2.4,pulse:.25})});
+
+// Wings, a spiked tail and little horns, hidden until Olivia's upgrade.
+function createDragonParts(rig){
+  const membrane=new T.MeshStandardMaterial({color:0x9c2630,roughness:.75,side:T.DoubleSide}),bone=new T.MeshStandardMaterial({color:0xe9dcc6,roughness:.6}),scale=new T.MeshStandardMaterial({color:0xa8323a,roughness:.55,metalness:.1});
+  const sphere=new T.SphereGeometry(1,12,8),cone=new T.ConeGeometry(1,1,8),cyl=new T.CylinderGeometry(1,1,1,6);
+  const outline=new T.Shape();outline.moveTo(0,0);outline.lineTo(.12,.2);outline.lineTo(.42,.36);outline.lineTo(.62,.3);outline.quadraticCurveTo(.5,.18,.52,.1);outline.quadraticCurveTo(.4,.08,.36,-.02);outline.quadraticCurveTo(.24,0,.18,-.08);outline.quadraticCurveTo(.08,-.02,0,0);
+  const wingGeo=new T.ShapeGeometry(outline,6),parts=[],wings=[];
+  const spar=(parent,a,b,r=.012)=>{const A=new T.Vector3(...a),B=new T.Vector3(...b),m=new T.Mesh(cyl,bone);m.position.copy(A).add(B).multiplyScalar(.5);m.scale.set(r,A.distanceTo(B),r);m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),B.sub(A).normalize());parent.add(m);return m;};
+  for(const side of [-1,1]){
+    const pivot=new T.Group();pivot.name='Rat dragon wing';pivot.position.set(side*.11,.15,.06);rig.root.add(pivot);
+    const blade=new T.Group();blade.scale.x=side;blade.rotation.y=-side*.35;pivot.add(blade);
+    const skin=new T.Mesh(wingGeo,membrane);skin.rotation.x=-.25;blade.add(skin);
+    spar(blade,[0,0,0],[.12,.2,0],.016);spar(blade,[.12,.2,0],[.42,.36,0]);spar(blade,[.42,.36,0],[.62,.3,0],.009);
+    for(const tip of [[.52,.1,0],[.36,-.02,0],[.18,-.08,0]])spar(blade,[.12,.2,0],tip,.007);
+    wings.push({pivot,side});parts.push(pivot);
+  }
+  // A segmented, spiked tail ending in a spade.
+  const tailRoot=new T.Group();tailRoot.name='Rat dragon tail';tailRoot.position.set(0,.08,-.46);rig.root.add(tailRoot);parts.push(tailRoot);
+  const segments=[];let parent=tailRoot;
+  for(let i=0;i<7;i++){
+    const j=new T.Group();j.position.set(0,0,i?-.1:0);parent.add(j);segments.push(j);
+    const r=.07*(1-i/8);const body=new T.Mesh(sphere,scale);body.scale.set(r,r*.9,.065);body.position.z=-.05;j.add(body);
+    const spike=new T.Mesh(cone,bone);spike.scale.set(.018,.05*(1-i/9),.018);spike.position.set(0,r*.9,-.05);spike.rotation.x=-.4;j.add(spike);
+    parent=j;
+  }
+  const spade=new T.Mesh(cone,scale);spade.scale.set(.07,.11,.02);spade.rotation.x=-Math.PI/2;spade.position.z=-.14;parent.add(spade);
+  const horns=[];for(const side of [-1,1]){const h=new T.Mesh(cone,bone);h.scale.set(.025,.09,.025);h.position.set(side*.075,.2,-.04);h.rotation.set(-.6,0,side*-.25);rig.head.add(h);horns.push(h);parts.push(h);}
+  for(const p of parts){p.visible=false;p.traverse(o=>{o.userData.dynamic=true;o.userData.companion='Bella';if(o.isMesh){o.castShadow=true;o.raycast=()=>{};}});}
+  return {parts,wings,segments,tailRoot,horns};
+}
+
+// Pooled flame puffs, recoloured from white-hot to ember red as they age.
+function createFlames(world){
+  const geo=new T.SphereGeometry(1,8,6),hot=new T.Color(0xfff2b0),mid=new T.Color(0xff8a2a),ember=new T.Color(0xb3200f);
+  const puffs=Array.from({length:36},()=>{const m=new T.Mesh(geo,new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false,blending:T.AdditiveBlending}));m.visible=false;m.castShadow=false;m.raycast=()=>{};m.userData.dynamic=true;world.add(m);return {mesh:m,vel:new T.Vector3(),life:0,max:.42};});
+  let next=0;
+  return {
+    emit(from,dir){const p=puffs[next++%puffs.length];p.life=p.max;p.mesh.position.copy(from);p.vel.copy(dir).multiplyScalar(6.5+Math.random()*2);p.vel.x+=(Math.random()-.5)*1.6;p.vel.y+=(Math.random()-.2)*.9;p.vel.z+=(Math.random()-.5)*1.6;p.mesh.visible=true;},
+    update(dt){for(const p of puffs){if(p.life<=0)continue;p.life-=dt;const f=1-Math.max(0,p.life)/p.max;p.mesh.position.addScaledVector(p.vel,dt);p.vel.multiplyScalar(1-dt*2.2);p.vel.y+=dt*1.5;p.mesh.scale.setScalar(.05+f*.32);
+      p.mesh.material.color.copy(f<.35?hot.clone().lerp(mid,f/.35):mid.clone().lerp(ember,(f-.35)/.65));p.mesh.material.opacity=.85*(1-f);if(p.life<=0)p.mesh.visible=false;}},
+    clear(){for(const p of puffs){p.life=0;p.mesh.visible=false;}},
+    get active(){return puffs.filter(p=>p.life>0).length;}
+  };
+}
 export const BELLA_PAW='<svg viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="8" cy="10" rx="3.2" ry="4.2"/><ellipse cx="15" cy="7" rx="3.2" ry="4.2"/><ellipse cx="23" cy="10" rx="3.2" ry="4.2"/><ellipse cx="27" cy="17" rx="2.7" ry="3.6"/><path d="M7 24c0-4 5-10 10-10s9 6 9 10-5 5-9 3-10 1-10-3z"/></svg>';
 
 // One cached articulated model. Coat tufts are merged per joint before entry;
@@ -60,7 +107,7 @@ function createBellaModel(batchArticulated){
   return {group,root,head,ears,jaw,tongue,legs,tail,phase:0,motion:0,time:0};
 }
 
-function animateBella(rig,dt,moved,biteTime,unlocked){
+function animateBella(rig,dt,moved,biteTime,unlocked,dragon=null,breathing=false){
   rig.time+=dt;rig.phase+=moved*12;rig.motion=T.MathUtils.damp(rig.motion,Math.min(1,moved/Math.max(.001,dt*3.8)),12,dt);
   const p=rig.phase,w=rig.motion,bite=biteTime>=0?Math.sin(Math.min(1,biteTime/.55)*Math.PI):0;
   rig.root.position.y=.40+Math.cos(p*2)*.014*w+Math.sin(rig.time*2.1)*.006;
@@ -70,6 +117,13 @@ function animateBella(rig,dt,moved,biteTime,unlocked){
   rig.jaw.rotation.x=bite*.38;rig.tongue.visible=biteTime>=0;
   for(let i=0;i<rig.ears.length;i++){rig.ears[i].rotation.x=Math.sin(p+1)*.17*w;rig.ears[i].rotation.z=(i?1:-1)*(.06+Math.sin(rig.time*2)*.018);}
   rig.tail.rotation.z=Math.sin(rig.time*(unlocked?7:3))*(unlocked?.32:.13);rig.tail.rotation.x=Math.sin(p*2)*.08*w;
+  if(dragon){
+    // Wings beat faster when she runs and flare wide while she breathes fire.
+    const beat=breathing?.95:.35+.25*w;
+    for(const {pivot,side} of dragon.wings){pivot.rotation.z=side*(beat*Math.sin(rig.time*(breathing?14:6+6*w))*.5+(breathing?.5:.15));pivot.rotation.y=side*(breathing?-.25:.05);}
+    for(const [i,j] of dragon.segments.entries()){j.rotation.y=Math.sin(rig.time*3.2-i*.65)*.2*(1+w);j.rotation.x=i?-.06:.25;}
+    if(breathing){rig.head.rotation.x=-.18;rig.jaw.rotation.x=.55;rig.tongue.visible=false;}
+  }
 }
 
 function buildKennel({world,colliders,solidMeshes,batchArticulated,interactables}){
@@ -125,16 +179,20 @@ function buildKennel({world,colliders,solidMeshes,batchArticulated,interactables
 export function createBellaCompanion(options){
   const {world,colliders,batchArticulated}=options,kennel=buildKennel(options),rig=createBellaModel(batchArticulated);world.add(rig.group);
   const pos=new T.Vector3(BELLA.x,BELLA.y+.17,BELLA.z),goal=new T.Vector3(),biteDirection=new T.Vector3();
-  let navigation=null,navTimer=0,selectionTimer=0,waypoint=null,velocity=0,grounded=true,emerging=false,stuck=0,failedTarget=null,failedTime=0;
+  let navigation=null,navTimer=0,selectionTimer=0,waypoint=null,velocity=0,grounded=true,emerging=false,stuck=0,failedTarget=null,failedTime=0,breathPulse=0;
+  const dragon=createDragonParts(rig),flames=createFlames(world),mouth=new T.Vector3(),breathDir=new T.Vector3();
   const companion={rig,kennel,station:kennel.station,pos,unlocked:false,target:null,activity:'KENNELED',attackTime:-1,cooldown:0,attacks:0,
+    dragon:false,breath:-1,breathCooldown:0,breaths:0,dragonParts:dragon,flames,
+    // Olivia's upgrade: wings, tail, horns and fire breath for the rest of the run.
+    becomeDragon(){if(companion.dragon)return false;companion.dragon=true;for(const p of dragon.parts)p.visible=true;for(const m of rig.tail.children)m.visible=false;companion.breathCooldown=.5;return true;},
     setNavigation(value){navigation=value;navTimer=0;waypoint=null;},
     unlock(){if(companion.unlocked)return false;companion.unlocked=true;kennel.station.used=true;kennel.doorCollider.disabled=true;emerging=true;companion.activity='JOINING YOU';return true;},
-    reset(){companion.unlocked=false;companion.target=null;companion.activity='KENNELED';companion.attackTime=-1;companion.cooldown=0;companion.attacks=0;kennel.station.used=false;kennel.doorCollider.disabled=false;kennel.progress=0;kennel.gate.rotation.y=0;pos.set(BELLA.x,BELLA.y+.17,BELLA.z);velocity=0;grounded=true;emerging=false;waypoint=null;navTimer=selectionTimer=stuck=failedTime=0;failedTarget=null;rig.phase=rig.motion=rig.time=0;rig.group.rotation.y=0;animateBella(rig,0,0,-1,false);rig.group.position.copy(pos);},
-    update(dt,{player,yaw=0,enemies,onBite,visualFloor=()=>0}){
-      const oldX=pos.x,oldZ=pos.z;
+    reset(){companion.dragon=false;companion.breath=-1;companion.breathCooldown=0;companion.breaths=0;breathPulse=0;for(const p of dragon.parts)p.visible=false;for(const m of rig.tail.children)m.visible=true;flames.clear();companion.unlocked=false;companion.target=null;companion.activity='KENNELED';companion.attackTime=-1;companion.cooldown=0;companion.attacks=0;kennel.station.used=false;kennel.doorCollider.disabled=false;kennel.progress=0;kennel.gate.rotation.y=0;pos.set(BELLA.x,BELLA.y+.17,BELLA.z);velocity=0;grounded=true;emerging=false;waypoint=null;navTimer=selectionTimer=stuck=failedTime=0;failedTarget=null;rig.phase=rig.motion=rig.time=0;rig.group.rotation.y=0;animateBella(rig,0,0,-1,false);rig.group.position.copy(pos);},
+    update(dt,{player,yaw=0,enemies,onBite,onBreath=()=>{},climb=null,visualFloor=()=>0}){
+      const oldX=pos.x,oldZ=pos.z;flames.update(dt);
       if(!companion.unlocked){animateBella(rig,dt,0,-1,false);return;}
       kennel.progress=Math.min(1,kennel.progress+dt/ .8);kennel.gate.rotation.y=-kennel.progress*Math.PI*.56;
-      companion.cooldown=Math.max(0,companion.cooldown-dt);failedTime=Math.max(0,failedTime-dt);
+      companion.cooldown=Math.max(0,companion.cooldown-dt);companion.breathCooldown=Math.max(0,companion.breathCooldown-dt);failedTime=Math.max(0,failedTime-dt);
       if(kennel.progress<.8){animateBella(rig,dt,0,-1,true);return;}
       const location=e=>e.walkPos||e.group.position;
       const inRange=e=>!e.dead&&location(e).distanceToSquared(player)<=BELLA.radius**2;
@@ -163,7 +221,9 @@ export function createBellaCompanion(options){
         if(waypoint?.reachable){tx=waypoint.x;tz=waypoint.z;}
         else{tx=pos.x;tz=pos.z;if(companion.target){failedTarget=companion.target;failedTime=1.5;companion.target=null;selectionTimer=navTimer=0;}}
       }
-      if((dist>stop||!sameFloor)&&companion.attackTime<0){
+      // The game can route her up (or down) the attic stairs.
+      const route=climb?.(pos,goal);if(route){tx=route.x;tz=route.z;}
+      if((dist>stop||!sameFloor)&&companion.attackTime<0&&companion.breath<0){
         let dx=tx-pos.x,dz=tz-pos.z,len=Math.hypot(dx,dz);
         if(len>.04){dx/=len;dz/=len;const speed=pos.distanceToSquared(player)>49?8:companion.target?5.8:5.4,step=Math.min(len,speed*dt);
           moveActor(pos,dx*step,dz*step,colliders,{radius:BELLA.bodyRadius,height:BELLA.height,grounded,allowFall:false});
@@ -173,17 +233,27 @@ export function createBellaCompanion(options){
       }
       const vertical=updateActorHeight(pos,velocity,dt,grounded,BELLA.height,BELLA.bodyRadius);velocity=vertical.velocity;grounded=vertical.grounded;
       const target=companion.target,p=target&&location(target),canBite=p&&!target.dead&&Math.abs(p.y-pos.y)<.55&&pos.distanceToSquared(p)<=BELLA.biteReach**2&&clearPath(pos,p);
-      if(canBite&&companion.cooldown===0&&companion.attackTime<0){companion.attackTime=0;companion.cooldown=BELLA.biteInterval;}
+      // The rat dragon opens with fire whenever a target is in reach of the cone.
+      const fireReach=companion.dragon&&p&&!target.dead&&Math.abs(p.y-pos.y)<.55&&pos.distanceToSquared(p)<=BELLA.fire.range**2&&clearPath(pos,p);
+      if(fireReach&&companion.breath<0&&companion.breathCooldown===0&&companion.attackTime<0){companion.breath=0;breathPulse=0;companion.breathCooldown=BELLA.fire.cooldown+BELLA.fire.duration;companion.breaths++;}
+      if(companion.breath>=0){
+        companion.breath+=dt;
+        rig.jaw.getWorldPosition(mouth);breathDir.set(Math.sin(rig.group.rotation.y),0,Math.cos(rig.group.rotation.y));mouth.addScaledVector(breathDir,.12);
+        for(let i=0;i<3;i++)flames.emit(mouth,breathDir);
+        breathPulse-=dt;if(breathPulse<=0){breathPulse=BELLA.fire.pulse;onBreath(mouth.clone(),breathDir.clone(),BELLA.fire.range,BELLA.fire.angle);}
+        if(companion.breath>=BELLA.fire.duration)companion.breath=-1;
+      }
+      if(canBite&&companion.breath<0&&companion.cooldown===0&&companion.attackTime<0){companion.attackTime=0;companion.cooldown=BELLA.biteInterval;}
       if(companion.attackTime>=0){
         const previous=companion.attackTime;companion.attackTime+=dt;
         if(previous<.24&&companion.attackTime>=.24&&canBite){biteDirection.copy(p).sub(pos).normalize();onBite(target,BELLA.damage,biteDirection);companion.attacks++;}
         if(companion.attackTime>=.58)companion.attackTime=-1;
       }
       let heading=rig.group.rotation.y;const moved=Math.hypot(pos.x-oldX,pos.z-oldZ);
-      if(companion.attackTime>=0&&p)heading=Math.atan2(p.x-pos.x,p.z-pos.z);else if(moved>.001)heading=Math.atan2(pos.x-oldX,pos.z-oldZ);
+      if((companion.attackTime>=0||companion.breath>=0)&&p)heading=Math.atan2(p.x-pos.x,p.z-pos.z);else if(moved>.001)heading=Math.atan2(pos.x-oldX,pos.z-oldZ);
       rig.group.rotation.y+=Math.atan2(Math.sin(heading-rig.group.rotation.y),Math.cos(heading-rig.group.rotation.y))*(1-Math.exp(-dt*10));
-      companion.activity=emerging?'JOINING YOU':companion.target?'GUARDING':'FOLLOWING';
-      animateBella(rig,dt,moved,companion.attackTime,true);rig.group.position.set(pos.x,Math.abs(pos.y)>.1?pos.y+.006:Math.max(pos.y,visualFloor(pos.x,pos.z)),pos.z);
+      companion.activity=emerging?'JOINING YOU':companion.breath>=0?'BREATHING FIRE':companion.target?'GUARDING':'FOLLOWING';
+      animateBella(rig,dt,moved,companion.attackTime,true,companion.dragon?dragon:null,companion.breath>=0);rig.group.position.set(pos.x,Math.abs(pos.y)>.1?pos.y+.006:Math.max(pos.y,visualFloor(pos.x,pos.z)),pos.z);
     }
   };
   function clearPath(from,to){

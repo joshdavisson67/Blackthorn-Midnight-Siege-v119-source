@@ -1,7 +1,7 @@
 import * as T from './three.module.js';
 import {drawStationMarker} from './station-models.mjs?v=129';
-import {UPPER_Y as Y,UPPER_HEIGHT,UPPER_CEILING,UPPER_TILES,UPPER_ROOMS,STAIR,EXTERIOR_STAIRS} from './vertical.mjs?v=116';
-import {prepareUpperShell,UPPER_SLAB_THICKNESS,UPPER_SLAB_BOTTOM} from './upper-shell.mjs?v=116';
+import {UPPER_Y as Y,UPPER_HEIGHT,UPPER_CEILING,UPPER_TILES,UPPER_ROOMS,STAIR,EXTERIOR_STAIRS,OLIVIA_ATTIC} from './vertical.mjs?v=131';
+import {prepareUpperShell,UPPER_SLAB_THICKNESS,UPPER_SLAB_BOTTOM} from './upper-shell.mjs?v=131';
 import {buildExteriorStairs} from './exterior-stairs.mjs?v=109';
 export function buildSecondFloor({scene,world,M,box,mesh,cylinder,sphere,label,colliders,solidMeshes,interactables,station,furnishings,rugs}){
   const shellReport=prepareUpperShell(world,colliders,solidMeshes);
@@ -130,7 +130,14 @@ export function buildSecondFloor({scene,world,M,box,mesh,cylinder,sphere,label,c
     // signage sheet. The whole panel stays below the ceiling trim.
     const plaque=mesh(new T.PlaneGeometry(3,.28),label('STAIRS · GROUND FLOOR','#d9c9ab',1024,{width:3,height:.28,kind:'room',maxLines:1}),[s.side*41.70,Y+2.68,0],[1,1,1],group);plaque.rotation.y=-s.side*Math.PI/2;
   }
+  // The west wing slabs leave a hatch opening for Olivia's attic stairs (v131).
+  function holedSlab(x,y,z,w,h,d,m,hole){
+    const x0=x-w/2,x1=x+w/2,z0=z-d/2,z1=z+d/2,hx0=hole.x-hole.w/2,hx1=hole.x+hole.w/2,hz0=hole.z-hole.d/2,hz1=hole.z+hole.d/2,parts=[];
+    const piece=(a,b,c,e)=>{if(b-a>1e-3&&e-c>1e-3)parts.push(block((a+b)/2,y,(c+e)/2,b-a,h,e-c,m));};
+    piece(x0,hx0,z0,z1);piece(hx1,x1,z0,z1);piece(hx0,hx1,z0,hz0);piece(hx0,hx1,hz1,z1);return parts;
+  }
   for(const x of [-28,0,28]){
+    if(x===-28){for(const c of holedSlab(x,UPPER_CEILING+.12,0,28,.24,24,cream,OLIVIA_ATTIC.hole))solidMeshes.push(c);holedSlab(x,UPPER_CEILING+.40,0,28.35,.30,24.35,M.roof,OLIVIA_ATTIC.hole);continue;}
     const ceiling=block(x,UPPER_CEILING+.12,0,28,.24,24,cream);solidMeshes.push(ceiling);
     if(x!==0)block(x,UPPER_CEILING+.40,0,28.35,.30,24.35,M.roof);
   }
@@ -179,7 +186,7 @@ export function drawUpperMap(canvas,player,interactables,yaw){
   c.fillStyle='#d6b983';c.fillRect(px(STAIR.x-STAIR.w/2),pz(STAIR.topZ),STAIR.w*scale,(STAIR.bottomZ-STAIR.topZ)*scale);
   c.fillStyle='#ddd6bd';c.textAlign='center';c.font='11px Arial';for(const r of UPPER_ROOMS)c.fillText(r.name,px(r.x),pz(r.z));
   c.fillStyle='#0d191e';c.fillText('OPEN TO GRAND HALL',px(0),pz(0));c.fillStyle='#ffe0a2';c.fillText('STAIRS',px(STAIR.x),pz(-5));
-  for(const s of interactables)if(s.y>2&&!s.used)drawStationMarker(c,s,px(s.x),pz(s.z));
+  for(const s of interactables)if(s.y>2&&!s.used&&!s.secret)drawStationMarker(c,s,px(s.x),pz(s.z));
   c.save();c.translate(px(player.x),pz(player.z));c.rotate(-yaw);c.fillStyle='#82f5df';c.beginPath();c.moveTo(0,-9);c.lineTo(-6,6);c.lineTo(6,6);c.closePath();c.fill();c.restore();
   c.fillStyle='#d7c6a4';c.font='18px Arial';c.fillText('SECOND FLOOR · FRONT WINGS',canvas.width/2,80);c.font='13px Arial';c.fillText('A AMMO · AR ARMOR · SG SHOTGUN · SM SMG · BM BUSHMASTER',canvas.width/2,canvas.height-100);c.fillText('N1 / N2 / N3 NANO SHIELD RANKS · B BELLA · ×2 DAMAGE · ∞ GRENADES',canvas.width/2,canvas.height-78);
 }

@@ -13,6 +13,20 @@ export const EXTERIOR_STAIRS=[-1,1].map(side=>({
   landing:{x:side*44.35,z:0,w:4.7,d:3.6},
   apron:{x:side*45,z:11.1,w:2.75,d:2.2,topY:.04},
 }));
+// Olivia's attic (v131): a small garret on the west wing roof above Bella's
+// bedchamber. Its pull-down stairs drop through the bedchamber ceiling once
+// 25 bone chips are collected. Closed, none of it is reachable.
+export const OLIVIA_ATTIC=Object.freeze({
+  x:-32,z:-7.8,w:4.8,d:7.2,            // interior footprint
+  y:UPPER_CEILING+.55,height:2.45,     // floor sits on the wing roof slab
+  stair:Object.freeze({x:-32.4,w:1.3,bottomZ:-3.6,topZ:-7.6,baseY:UPPER_Y,topY:UPPER_CEILING+.55,steps:13,attic:true}),
+  hole:Object.freeze({x:-32.4,z:-6.1,w:1.3,d:3.0})
+});
+let atticOpen=false;
+export function isAtticOpen(){return atticOpen;}
+export function setAtticOpen(open){atticOpen=!!open;}
+export function inAttic(x,z,r=0){const a=OLIVIA_ATTIC;return Math.abs(x-a.x)<=a.w/2-r&&Math.abs(z-a.z)<=a.d/2-r;}
+export function inAtticHole(x,z){const h=OLIVIA_ATTIC.hole;return Math.abs(x-h.x)<=h.w/2&&Math.abs(z-h.z)<=h.d/2;}
 const stairs=[STAIR,...EXTERIOR_STAIRS];
 export const UPPER_TILES=[
   {x:-28,z:0,w:28,d:24},{x:28,z:0,w:28,d:24},
@@ -30,15 +44,17 @@ export const UPPER_ROOMS=[
 export const UPPER_SPAWNS=UPPER_ROOMS.flatMap(({x,z})=>[[x,z,UPPER_Y],[x-3,z,UPPER_Y],[x+3,z,UPPER_Y]]);
 const inside=(x,z,t)=>Math.abs(x-t.x)<=t.w/2+1e-6&&Math.abs(z-t.z)<=t.d/2+1e-6;
 export function hasUpperFloor(x,z,r=0){for(let corner=0;corner<(r?4:1);corner++){const xx=x+(corner&1?r:-r),zz=z+(corner&2?r:-r);let supported=false;for(const t of UPPER_TILES)if(inside(xx,zz,t)){supported=true;break;}if(!supported)for(const s of EXTERIOR_STAIRS)if(inside(xx,zz,s.landing)){supported=true;break;}if(!supported)return false;}return true;}
-export function stairAt(x,z){for(const s of stairs)if(Math.abs(x-s.x)<=s.w/2&&z>=s.topZ&&z<=s.bottomZ)return s;return null;}
-export function stairHeight(x,z){const s=stairAt(x,z);return s?UPPER_Y*(s.bottomZ-z)/(s.bottomZ-s.topZ):null;}
+export function stairAt(x,z){for(const s of stairs)if(Math.abs(x-s.x)<=s.w/2&&z>=s.topZ&&z<=s.bottomZ)return s;const a=OLIVIA_ATTIC.stair;if(atticOpen&&Math.abs(x-a.x)<=a.w/2&&z>=a.topZ&&z<=a.bottomZ)return a;return null;}
+export function stairHeight(x,z){const s=stairAt(x,z);if(!s)return null;const f=(s.bottomZ-z)/(s.bottomZ-s.topZ);return s.attic?s.baseY+(s.topY-s.baseY)*f:UPPER_Y*f;}
 export function supportBelow(x,z,y=0,step=0,radius=0,colliders=null){
   const cellar=cellarSupport(x,z,y,step);if(cellar!==null)return cellar;
   let h=sarcophagusSupport(x,z,y,step,radius)??0;
   for(const {apron} of EXTERIOR_STAIRS)if(inside(x,z,apron)&&apron.topY<=y+step+1e-6)h=Math.max(h,apron.topY);
   const s=stairHeight(x,z);
   if(s!==null&&s<=y+step+1e-6)h=Math.max(h,s);
-  if(UPPER_Y<=y+step+1e-6&&hasUpperFloor(x,z))h=UPPER_Y;
+  // max(): the attic stairs rise above the second floor (v131).
+  if(UPPER_Y<=y+step+1e-6&&hasUpperFloor(x,z))h=Math.max(h,UPPER_Y);
+  if(atticOpen&&OLIVIA_ATTIC.y<=y+step+1e-6&&inAttic(x,z)&&!inAtticHole(x,z))h=OLIVIA_ATTIC.y;
   // Rails and low furniture support the whole foot radius so jumps land on
   // their tops and players can step off instead of sinking into the box.
   if(colliders)for(const c of colliders.query?.(x,z,radius)??colliders){
@@ -52,7 +68,10 @@ export function supportBelow(x,z,y=0,step=0,radius=0,colliders=null){
   return h;
 }
 export function upperLocation(x,z){for(const s of EXTERIOR_STAIRS)if(inside(x,z,s.landing)||stairAt(x,z)===s)return (s.side<0?'WEST':'EAST')+' EXTERIOR STAIRS';return UPPER_ROOMS.reduce((a,b)=>Math.hypot(a.x-x,a.z-z)<Math.hypot(b.x-x,b.z-z)?a:b).name;}
-export function ceilingAt(x,z,y){if(inMausoleum(x,z))return MAUSOLEUM.ceiling;if(y<-.3&&inCellar(x,z))return -.50;let ceiling=Math.abs(x)<=42&&z>=-12&&z<=12?UPPER_CEILING:Infinity;if(hasUpperFloor(x,z)&&y<UPPER_Y-.01)ceiling=Math.min(ceiling,UPPER_Y-.24);const ramp=stairHeight(x,z);if(ramp!==null&&ramp>y+.31)ceiling=Math.min(ceiling,ramp-.22);return ceiling;}
+export function ceilingAt(x,z,y){
+  // Up through the open hatch and inside the garret, the attic roof is the limit.
+  if(atticOpen&&y>UPPER_Y-.01&&(inAtticHole(x,z)||y>UPPER_CEILING-.3&&inAttic(x,z))){let top=OLIVIA_ATTIC.y+OLIVIA_ATTIC.height;const ramp=stairHeight(x,z);if(ramp!==null&&ramp>y+.31)top=Math.min(top,ramp-.22);return top;}
+  if(inMausoleum(x,z))return MAUSOLEUM.ceiling;if(y<-.3&&inCellar(x,z))return -.50;let ceiling=Math.abs(x)<=42&&z>=-12&&z<=12?UPPER_CEILING:Infinity;if(hasUpperFloor(x,z)&&y<UPPER_Y-.01)ceiling=Math.min(ceiling,UPPER_Y-.24);const ramp=stairHeight(x,z);if(ramp!==null&&ramp>y+.31)ceiling=Math.min(ceiling,ramp-.22);return ceiling;}
 
 // Walk the treads as a continuous slope. Height checks reject sideways entry
 // onto a tall step, while allowing passage underneath the high end of the flight.
@@ -84,7 +103,7 @@ export function buildVerticalNavigation(colliders,{radius=.44,groundHeight=1.8,u
   const ground=buildNavigation(colliders,ESTATE_BOUNDS,0,radius,groundHeight),upper=buildNavigation(colliders,ESTATE_BOUNDS,UPPER_Y,radius,upperHeight),cellar=buildNavigation(colliders,ESTATE_BOUNDS,CELLAR.y,radius,groundHeight),{w,h,minX,minZ}=ground,n=w*h;
   for(let i=0;i<n;i++)if(!hasUpperFloor(i%w+minX,Math.floor(i/w)+minZ,radius))upper.blocked[i]=1;
   // The flight is a portal between levels, not a flat shortcut underneath it.
-  for(let i=0;i<n;i++)if(stairHeight(i%w+minX,Math.floor(i/w)+minZ)!==null)ground.blocked[i]=1;
+  for(let i=0;i<n;i++){const s=stairAt(i%w+minX,Math.floor(i/w)+minZ);if(s)(s.attic?upper:ground).blocked[i]=1;}
   for(let i=0;i<n;i++){const x=i%w+minX,z=Math.floor(i/w)+minZ;if(!isCellarOpen()||!inCellar(x,z,radius))cellar.blocked[i]=1;if(cellarStairHeight(x,z)!==null)ground.blocked[i]=1;}
   const blocked=new Uint8Array(n*3);blocked.set(ground.blocked);blocked.set(upper.blocked,n);blocked.set(cellar.blocked,n*2);
   const distance=new Int32Array(n*3),queue=new Int32Array(n*3);distance.fill(99999);
