@@ -66,35 +66,35 @@ begin
 
   if jsonb_typeof(run->'id') is distinct from 'string'
      or (run->>'id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then
-    raise sqlstate 'PT400' using message = 'Use a name of 1–24 characters and a valid completed run.';
+    raise sqlstate 'PT400' using message = 'Use a name of 1-24 characters and a valid completed run.';
   end if;
   run_id := lower(run->>'id')::uuid;
 
   if jsonb_typeof(run->'name') is distinct from 'string' then
-    raise sqlstate 'PT400' using message = 'Use a name of 1–24 characters and a valid completed run.';
+    raise sqlstate 'PT400' using message = 'Use a name of 1-24 characters and a valid completed run.';
   end if;
   clean_name := regexp_replace(btrim(normalize(run->>'name', NFKC)), '\s+', ' ', 'g');
   if char_length(clean_name) not between 1 and 24
-     or clean_name ~ '[<>\u0001-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯]' then
-    raise sqlstate 'PT400' using message = 'Use a name of 1–24 characters and a valid completed run.';
+     or clean_name ~ '[<>\u0001-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f]' then
+    raise sqlstate 'PT400' using message = 'Use a name of 1-24 characters and a valid completed run.';
   end if;
 
   foreach key in array array['score','wave','kills','duration'] loop
     value := run->key;
     if jsonb_typeof(value) is distinct from 'number' or (value::text)::numeric <> trunc((value::text)::numeric) then
-      raise sqlstate 'PT400' using message = 'Use a name of 1–24 characters and a valid completed run.';
+      raise sqlstate 'PT400' using message = 'Use a name of 1-24 characters and a valid completed run.';
     end if;
   end loop;
   if (run->>'score')::numeric not between 0 and 1000000000
      or (run->>'wave')::numeric not between 0 and 10000
      or (run->>'kills')::numeric not between 0 and 10000000
      or (run->>'duration')::numeric not between 0 and 604800 then
-    raise sqlstate 'PT400' using message = 'Use a name of 1–24 characters and a valid completed run.';
+    raise sqlstate 'PT400' using message = 'Use a name of 1-24 characters and a valid completed run.';
   end if;
   nums := array[(run->>'score')::int, (run->>'wave')::int, (run->>'kills')::int, (run->>'duration')::int];
 
   if jsonb_typeof(run->'version') is distinct from 'string' or (run->>'version') !~ '^\d{1,5}$' then
-    raise sqlstate 'PT400' using message = 'Use a name of 1–24 characters and a valid completed run.';
+    raise sqlstate 'PT400' using message = 'Use a name of 1-24 characters and a valid completed run.';
   end if;
 
   -- Older saved runs have no curse data. The title is always the server's own.
@@ -102,7 +102,7 @@ begin
     value := run->'curseRank';
     if jsonb_typeof(value) <> 'number' or (value::text)::numeric <> trunc((value::text)::numeric)
        or (value::text)::numeric not between 0 and 25 then
-      raise sqlstate 'PT400' using message = 'Use a name of 1–24 characters and a valid completed run.';
+      raise sqlstate 'PT400' using message = 'Use a name of 1-24 characters and a valid completed run.';
     end if;
     rank_value := (value::text)::int;
   end if;
