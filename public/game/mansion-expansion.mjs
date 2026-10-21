@@ -1,6 +1,6 @@
 import {drawGraveyardMap} from './graveyard.mjs?v=126';
 import * as T from './three.module.js';
-import {drawStationMarker} from './station-models.mjs?v=125';
+import {drawStationMarker} from './station-models.mjs?v=129';
 import {ESTATE_ROOMS} from './estate-layout.mjs?v=28';
 import {CELLAR} from './cellar-layout.mjs?v=28';
 import {SHED,SHED_FRONT} from './shed-layout.mjs?v=76';
@@ -16,7 +16,9 @@ export function buildMansionExpansion({scene,world,M,box,mesh,cylinder,sphere,pa
     cylinder(x,6.15-drop,z,.026,1.15,bronze);
     box(x,5.55-drop,z,.7,.18,.7,bronze);
     sphere(x,5.34-drop,z,.24,.28,.24,flameMat);
-    fixtures.push({x,y:4.8-drop,z,color:cool?0xa5c8de:0xffc38d});
+    // The light sits in the globe, so its strength follows the real mounting
+    // height: low lamps in the wing rooms no longer glare like ceiling lamps.
+    fixtures.push({x,y:5.12-drop,z,floor:0,color:cool?0xa5c8de:0xffc38d});
   }
   const bench=(x,z,rot=0,w=2.6)=>furnishings.bench(x,z,{rotation:rot,w});
   const bed=(x,z,kind='single',rotation=0)=>furnishings.bed(x,z,{kind,rotation});

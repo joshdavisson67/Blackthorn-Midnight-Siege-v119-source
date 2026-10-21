@@ -1,6 +1,6 @@
 import * as T from './three.module.js';
 import {LIGHT_BUDGET} from './lighting.mjs?v=120';
-import {POWERUPS} from './powerups.mjs?v=125';
+import {POWERUPS} from './powerups.mjs?v=129';
 // Three's light count is part of its shader-program key. Never add/remove lights
 // for short-lived pickups or flashes: choose the two strongest nearby sources.
 export function createCombatLights(scene,lighting){

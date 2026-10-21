@@ -1,5 +1,5 @@
 import * as T from './three.module.js';
-import {drawStationMarker} from './station-models.mjs?v=125';
+import {drawStationMarker} from './station-models.mjs?v=129';
 import {UPPER_Y as Y,UPPER_HEIGHT,UPPER_CEILING,UPPER_TILES,UPPER_ROOMS,STAIR,EXTERIOR_STAIRS} from './vertical.mjs?v=116';
 import {prepareUpperShell,UPPER_SLAB_THICKNESS,UPPER_SLAB_BOTTOM} from './upper-shell.mjs?v=116';
 import {buildExteriorStairs} from './exterior-stairs.mjs?v=109';
@@ -163,7 +163,7 @@ export function buildSecondFloor({scene,world,M,box,mesh,cylinder,sphere,label,c
   furnishings.sofa(10,8.6,{y:Y});furnishings.table(10,6.8,{y:Y,w:1.4,d:.65,h:.42});
   for(const x of [-28,28])rugs.add(x,0,25,2.25,Y);
   for(const [x,z] of [[-37,0],[-22,0],[-10,2],[10,2],[22,0],[37,0],[0,-10.5],[0,10.5],[-35,-7],[35,-7],[-21,-7],[21,-7],[-28,7],[28,7]]){
-    cylinder(x,UPPER_CEILING-.065,z,.24,.10,M.gold,group);const bulb=sphere(x,UPPER_CEILING-.19,z,.15,.15,.15,M.white,group);bulb.castShadow=false;fixtures.push({x,y:UPPER_CEILING-.35,z});
+    cylinder(x,UPPER_CEILING-.065,z,.24,.10,M.gold,group);const bulb=sphere(x,UPPER_CEILING-.19,z,.15,.15,.15,M.white,group);bulb.castShadow=false;fixtures.push({x,y:UPPER_CEILING-.3,z,floor:Y});
   }
   // Place supplies along each gallery's solid corridor wall, away from its door.
   // Leave clearance for the ammunition case's rearward-tilted lid.

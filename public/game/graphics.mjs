@@ -66,7 +66,8 @@ export function flashlightBeamTexture(size=256){
 }
 
 // Satin oak: grain and gaps are rougher than the board faces, worn patches dull.
-export const OAK_FINISH=(dark,wear)=>{const r=.66+.22*dark+.08*wear;return [r,r];};
+// Old oak under lamplight: a soft sheen, not a mirror at grazing angles (v129).
+export const OAK_FINISH=(dark,wear)=>{const r=.76+.16*dark+.06*wear;return [r,r];};
 // Rain on limestone: water stands in joints and pits; faces stay mostly dry.
 export const WET_STONE_FINISH=(dark,wear)=>{const wet=.12+.88*Math.pow(dark,1.6)*(.75+.25*wear);return [wet,1-.45*wet];};
 
