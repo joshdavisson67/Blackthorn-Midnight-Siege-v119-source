@@ -17,80 +17,92 @@ export function enemySurfaces(){
   function ellipse(ctx,x,y,rx,ry,paint,rotation=0){ctx.fillStyle=paint;ctx.beginPath();ctx.ellipse(x*TILE,y*TILE,rx*TILE,ry*TILE,rotation,0,Math.PI*2);ctx.fill();}
   function soft(ctx,x,y,rx,ry,paint){ctx.save();ctx.translate(x*TILE,y*TILE);ctx.scale(rx*TILE,ry*TILE);const g=ctx.createRadialGradient(0,0,0,0,0,1);g.addColorStop(0,paint);g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.fillRect(-1,-1,2,2);ctx.restore();}
   function line(ctx,points,paint,thickness){ctx.strokeStyle=paint;ctx.lineWidth=thickness;ctx.lineCap='round';ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x*TILE,y*TILE):ctx.moveTo(x*TILE,y*TILE));ctx.stroke();}
+  function path(ctx,points,paint,close=true){ctx.fillStyle=paint;ctx.beginPath();points.forEach(([px,py],i)=>i?ctx.lineTo(px*TILE,py*TILE):ctx.moveTo(px*TILE,py*TILE));if(close)ctx.closePath();ctx.fill();}
+  function blob(x,y,rx,ry,jag=.45,n=22){const pts=[];for(let i=0;i<n;i++){const a=i/n*Math.PI*2,r=1-jag/2+rng()*jag;pts.push([x+Math.cos(a)*rx*r,y+Math.sin(a)*ry*r]);}return pts;}
+  // Gore runs and smears (v133): dark, coagulated stains that drip down the
+  // part, with a wet core and dried brown edges, rather than round spots.
   function blood(x,y,rx,ry,heavy=false){
-    // Irregular, connected stains follow the actual surface UVs. No floating
-    // decal planes, coplanar meshes, transparency sorting or additional draws.
-    soft(color,x,y,rx*1.9,ry*1.5,'rgba(77,39,40,.42)');soft(mask,x,y,rx*1.9,ry*1.5,'rgba(210,210,210,.35)');
-    const points=[];for(let i=0;i<26;i++){const a=i/26*Math.PI*2,r=.64+rng()*.48;points.push([x+Math.cos(a)*rx*r,y+Math.sin(a)*ry*r]);}
-    for(const [ctx,paint] of [[color,heavy?'#3c161d':'#4c1c25'],[mask,'#d0d0d0'],[relief,'#929292']]){
-      ctx.fillStyle=paint;ctx.beginPath();points.forEach(([px,py],i)=>i?ctx.lineTo(px*TILE,py*TILE):ctx.moveTo(px*TILE,py*TILE));ctx.closePath();ctx.fill();
+    soft(color,x,y+ry*.4,rx*2.1,ry*1.8,'rgba(58,32,30,.38)');soft(mask,x,y+ry*.4,rx*2.1,ry*1.8,'rgba(150,150,150,.25)');
+    const core=blob(x,y,rx,ry*.8,.7,28);
+    for(const [ctx,paint] of [[color,heavy?'#2a0d10':'#3a1216'],[mask,'#cfcfcf'],[relief,'#8f8f8f']])path(ctx,core,paint);
+    path(color,blob(x-rx*.1,y-ry*.1,rx*.55,ry*.4,.6),heavy?'#4b1218':'#5a1a1f');
+    for(let i=0;i<4+Math.floor(rng()*4);i++){
+      // Runs: thin, wavering drips that thicken into a bead at the end.
+      const px=x+(rng()-.5)*rx*1.5,py=y+ry*(.2+rng()*.4),len=.03+rng()*.12,w=1.2+rng()*2.6,pts=[[px,py]];
+      for(let k=1;k<=6;k++)pts.push([px+(rng()-.5)*.006,py+len*k/6]);
+      line(color,pts,heavy?'#2c0e11':'#3d1418',w);line(mask,pts,'#c4c4c4',w);line(relief,pts,'#959595',w*.7);
+      const [ex,ey]=pts[pts.length-1];ellipse(color,ex,ey,w*.9/TILE,w*1.4/TILE,'#2a0c0f');ellipse(mask,ex,ey,w*.9/TILE,w*1.4/TILE,'#d0d0d0');
     }
-    for(let i=0;i<95;i++){
-      const px=x+(rng()-.5)*rx*1.8,py=y+(rng()-.5)*ry*1.65,r=.001+rng()*.004;
-      ellipse(color,px,py,r,r*1.5,i%3?'#642831':'#2f161b');ellipse(mask,px,py,r,r*1.5,'#ededed');
-      line(color,[[px,py],[px+rx*.05,py+ry*.14]],i%3?'rgba(118,44,49,.24)':'rgba(19,10,14,.45)',.8);
-    }
-    for(let i=0;i<3;i++){
-      const px=x+(rng()-.5)*rx,py=y+ry*.48,len=.022+rng()*.075,points=[[px,py],[px+.002,py+len*.7],[px-.003,py+len]];
-      line(color,points,'#401820',1+rng()*2);line(mask,points,'#c0c0c0',2);line(relief,points,'#979797',1.5);
+    // A dragged smear and fine spatter thrown sideways.
+    const sx=x+(rng()-.5)*rx,sy=y-ry*.3,dir=(rng()-.5)*1.2;
+    for(let k=0;k<5;k++)line(color,[[sx,sy+k*.003],[sx+rx*2*Math.cos(dir),sy+k*.003+rx*2*Math.sin(dir)]],'rgba(52,18,22,.28)',2+rng()*2);
+    for(let i=0;i<26;i++){const a=dir+(rng()-.5)*1.6,d=rx*(1+rng()*1.8),r=.0012+rng()*.0028;ellipse(color,x+Math.cos(a)*d,y+Math.sin(a)*d,r*1.8,r,'#33110f',a);ellipse(mask,x+Math.cos(a)*d,y+Math.sin(a)*d,r*1.8,r,'#bbbbbb',a);}
+  }
+  function veins(count,paint,reliefPaint){
+    for(let i=0;i<count;i++){
+      let x=rng(),y=rng(),a=rng()*Math.PI*2;const pts=[[x,y]];
+      for(let k=0;k<7;k++){a+=(rng()-.5)*.9;x+=Math.cos(a)*.018;y+=Math.sin(a)*.018;pts.push([x,y]);
+        if(rng()<.3){const b=a+(rng()<.5?-1:1)*(.6+rng()*.5);line(color,[[x,y],[x+Math.cos(b)*.02,y+Math.sin(b)*.02],[x+Math.cos(b)*.032,y+Math.sin(b)*.036]],paint,.8);}}
+      line(color,pts,paint,1+rng()*.8);line(relief,pts,reliefPaint,1);
     }
   }
+  function grime(fromY,paint){const g=color.createLinearGradient(0,fromY*TILE,0,TILE);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,paint);color.fillStyle=g;color.fillRect(0,0,TILE,TILE);}
   for(let tile=0;tile<8;tile++){
     const ox=(tile%COLS)*TILE,oy=Math.floor(tile/COLS)*TILE;
     for(const ctx of [color,mask,relief]){ctx.save();ctx.translate(ox,oy);ctx.beginPath();ctx.rect(0,0,TILE,TILE);ctx.clip();}
-    color.fillStyle='#eeeae0';color.fillRect(0,0,TILE,TILE);mask.fillStyle='#000';mask.fillRect(0,0,TILE,TILE);relief.fillStyle='#808080';relief.fillRect(0,0,TILE,TILE);
+    color.fillStyle='#e6e0d3';color.fillRect(0,0,TILE,TILE);mask.fillStyle='#000';mask.fillRect(0,0,TILE,TILE);relief.fillStyle='#808080';relief.fillRect(0,0,TILE,TILE);
     if(tile===ENEMY_SURFACE.face||tile===ENEMY_SURFACE.skin){
-      for(let i=0;i<220;i++){
-        const x=rng(),y=rng(),r=.012+rng()*.04;
-        soft(color,x,y,r,r*.6,'rgba(104,115,99,.22)');
-        soft(relief,x,y,r,r*.6,'rgba(100,100,100,.14)');
-      }
-      for(let i=0;i<4200;i++){
-        const x=rng()*TILE,y=rng()*TILE,r=.45+rng()*.65;
-        color.fillStyle='rgba(57,55,46,.09)';color.fillRect(x,y,r,r);
-        relief.fillStyle=i%2?'#777':'#898989';relief.fillRect(x,y,r,r);
-      }
-      for(let i=0;i<20;i++){
-        const x=rng(),y=rng();line(color,[[x,y],[x-.014,y+.022],[x+.009,y+.059]],'rgba(72,61,81,.22)',1.3);
-        line(relief,[[x,y],[x-.014,y+.022],[x+.009,y+.059]],'#696969',1);
-      }
+      // Dead skin: livor bruising, sallow and grey-green patches, rot.
+      const tones=['rgba(84,58,82,.30)','rgba(150,138,70,.22)','rgba(74,92,78,.28)','rgba(52,40,34,.30)','rgba(120,96,92,.2)'];
+      for(let i=0;i<300;i++){const x=rng(),y=rng(),r=.015+rng()*.06;soft(color,x,y,r,r*(.5+rng()*.6),tones[i%tones.length]);soft(relief,x,y,r,r*.6,'rgba(104,104,104,.12)');}
+      for(let i=0;i<5200;i++){const x=rng()*TILE,y=rng()*TILE,r=.5+rng()*.8;color.fillStyle=i%3?'rgba(48,44,38,.11)':'rgba(240,232,210,.06)';color.fillRect(x,y,r,r);relief.fillStyle=i%2?'#747474':'#8b8b8b';relief.fillRect(x,y,r,r);}
+      veins(46,'rgba(58,46,78,.42)','#6c6c6c');
+      // Sores: dark rims, raw centres, raised edges.
+      for(let i=0;i<26;i++){const x=rng(),y=rng(),r=.006+rng()*.014;
+        path(color,blob(x,y,r*1.5,r*1.2,.6),'rgba(60,40,36,.55)');path(color,blob(x,y,r,r*.8,.5),'#5c2a26');path(relief,blob(x,y,r*1.5,r*1.2,.6),'#9a9a9a');path(relief,blob(x,y,r*.8,r*.6,.5),'#606060');}
+      for(let i=0;i<14;i++){const x=rng(),y=rng();line(color,[[x,y],[x-.016,y+.024],[x+.01,y+.06],[x-.004,y+.08]],'rgba(40,24,26,.35)',1.4);line(relief,[[x,y],[x-.016,y+.024],[x+.01,y+.06],[x-.004,y+.08]],'#606060',1.2);}
       if(tile===ENEMY_SURFACE.face){
-        // Sphere front faces +Z at u=.25. UVs stay on the sculpted skull, so
-        // bruising surrounds the sockets and blood sits on lips/cheeks/chin.
-        for(const x of [.169,.331]){
-          soft(color,x,.46,.048,.079,'rgba(49,39,47,.55)');
-          for(let j=0;j<3;j++)line(color,[[x-.025,.49+j*.010],[x,.508+j*.010],[x+.028,.49+j*.010]],'rgba(68,60,59,.25)',1.4);
-        }
-        for(let j=0;j<3;j++)line(relief,[[.17,.30+j*.028],[.25,.294+j*.028],[.33,.31+j*.028]],'#737373',1.5);
-        for(const x of [.142,.358])soft(color,x,.595,.039,.075,'rgba(64,52,58,.28)');
-        blood(.322,.59,.029,.065);blood(.251,.72,.050,.050,true);blood(.21,.816,.023,.035);
-        blood(.156,.315,.012,.067);line(color,[[.156,.31],[.179,.39],[.165,.45]],'#4e1520',2);
-      }else{blood(.26,.46,.037,.105);blood(.34,.7,.016,.045);}
+        // Sphere front faces +Z at u=.25. Deep bruised sockets, a rotten
+        // mouth that drools gore down the chin, and cracked, peeling lips.
+        for(const x of [.169,.331]){soft(color,x,.47,.062,.09,'rgba(28,18,24,.82)');soft(color,x,.47,.09,.13,'rgba(52,34,46,.4)');
+          soft(color,x,.53,.05,.03,'rgba(40,26,34,.35)');}
+        soft(color,.25,.72,.09,.05,'rgba(40,20,22,.55)');
+        for(let j=0;j<3;j++)line(relief,[[.17,.3+j*.03],[.21,.296+j*.03+rng()*.006],[.25,.298+j*.03],[.29,.294+j*.03+rng()*.006],[.33,.302+j*.03]],'#767676',1.2);
+        for(const x of [.138,.362])soft(color,x,.6,.045,.08,'rgba(46,34,40,.42)');
+        blood(.25,.74,.04,.03,true);blood(.31,.6,.02,.04);blood(.2,.82,.018,.03);
+        blood(.15,.3,.012,.05);line(color,[[.156,.31],[.179,.39],[.165,.45]],'#3c0f15',2);
+      }else{blood(.26,.42,.032,.07);blood(.36,.72,.016,.04);blood(.72,.35,.02,.05,true);}
     }else if(tile===ENEMY_SURFACE.cloth||tile===ENEMY_SURFACE.leather){
-      for(let i=0;i<TILE;i+=4){
-        color.fillStyle=i%8?'#d4d0c5':'#e7e3d9';color.fillRect(i,0,1,TILE);color.fillRect(0,i,TILE,1);
-        relief.fillStyle=i%8?'#858585':'#797979';relief.fillRect(i,0,1,TILE);relief.fillRect(0,i,TILE,1);
-      }
-      for(let i=0;i<12;i++){
-        const x=rng(),y=rng();line(color,[[x-.07,y-.01],[x,y],[x+.11,y+.034]],'rgba(71,65,55,.16)',4);
-        line(relief,[[x-.07,y-.01],[x,y],[x+.11,y+.034]],'#707070',2);
-      }
-      blood(.21,.31,.036,.088);blood(.30,.45,.022,.046);if(tile===ENEMY_SURFACE.cloth)blood(.265,.73,.048,.068,true);
+      // Coarse, filthy fabric: irregular weave noise, sun-faded streaks,
+      // mildew, mud soaked up from the hem and old blood runs.
+      for(let i=0;i<9000;i++){const x=rng()*TILE,y=rng()*TILE,l=1+rng()*3,v=rng()<.5;color.fillStyle=i%2?'rgba(70,64,54,.12)':'rgba(250,244,230,.08)';color.fillRect(x,y,v?1:l,v?l:1);relief.fillStyle=i%2?'#7a7a7a':'#878787';relief.fillRect(x,y,v?1:l,v?l:1);}
+      for(let i=0;i<70;i++){const x=rng(),r=.02+rng()*.05;soft(color,x,rng(),r,r*(1+rng()*2),i%3?'rgba(58,52,40,.22)':'rgba(96,104,70,.16)');}
+      for(let i=0;i<22;i++){const x=rng(),y=rng(),len=.08+rng()*.3;line(color,[[x,y],[x+(rng()-.5)*.01,y+len]],'rgba(46,40,32,.14)',3+rng()*6);}
+      for(let i=0;i<10;i++){const x=rng(),y=rng();line(color,[[x-.07,y-.01],[x,y],[x+.11,y+.034]],'rgba(60,54,45,.2)',4);line(relief,[[x-.07,y-.01],[x,y],[x+.11,y+.034]],'#6c6c6c',2);}
+      // Frayed tears with pale threads.
+      for(let i=0;i<8;i++){const x=rng(),y=rng();path(color,blob(x,y,.012,.03,.8),'rgba(20,16,14,.6)');for(let k=0;k<6;k++)line(color,[[x+(rng()-.5)*.02,y+(rng()-.5)*.05],[x+(rng()-.5)*.04,y+(rng()-.5)*.07]],'rgba(220,210,190,.35)',.8);}
+      grime(.55,tile===ENEMY_SURFACE.leather?'rgba(34,28,20,.55)':'rgba(46,36,24,.5)');
+      blood(.21,.3,.03,.07);blood(.32,.47,.02,.04);if(tile===ENEMY_SURFACE.cloth){blood(.27,.7,.045,.06,true);blood(.78,.4,.025,.05);}
     }else if(tile===ENEMY_SURFACE.wound){
-      color.fillStyle='#4b1b24';color.fillRect(0,0,TILE,TILE);mask.fillStyle='#fff';mask.fillRect(0,0,TILE,TILE);
-      for(let i=0;i<420;i++){
-        const x=rng(),y=rng(),r=.004+rng()*.021;ellipse(color,x,y,r,r*.5,i%3?'#632832':'#28171d',rng()*3);
-        ellipse(relief,x,y,r,r*.5,i%3?'#929292':'#555',rng()*3);
-      }
+      // Raw muscle: dark fibrous striations, clots and glistening tissue.
+      color.fillStyle='#4a1a1f';color.fillRect(0,0,TILE,TILE);mask.fillStyle='#fff';mask.fillRect(0,0,TILE,TILE);
+      for(let i=0;i<700;i++){const x=rng(),y=rng(),len=.02+rng()*.06,a=.35+(rng()-.5)*.5;const pts=[[x,y],[x+Math.cos(a)*len,y+Math.sin(a)*len]];
+        line(color,pts,i%4?'rgba(110,38,44,.5)':'rgba(30,8,12,.6)',1+rng()*2);line(relief,pts,i%3?'#9a9a9a':'#5c5c5c',1+rng());}
+      for(let i=0;i<60;i++){const x=rng(),y=rng(),r=.006+rng()*.02;path(color,blob(x,y,r,r*.7,.7),i%2?'#26090d':'#7a2c33');path(relief,blob(x,y,r,r*.7,.7),i%2?'#505050':'#a8a8a8');}
+      for(let i=0;i<40;i++){const x=rng(),y=rng();line(color,[[x,y],[x+.03,y+.01],[x+.05,y+.03]],'rgba(214,190,160,.35)',1);}
     }else if(tile===ENEMY_SURFACE.bone){
-      for(let i=0;i<90;i++){const x=rng(),y=rng();line(color,[[x,y],[x+.007,y+.025],[x-.003,y+.046]],'rgba(57,43,29,.16)',1);}
-      blood(.27,.68,.029,.10,true);
+      color.fillStyle='#d6cdb2';color.fillRect(0,0,TILE,TILE);
+      for(let i=0;i<120;i++){const x=rng(),r=.01+rng()*.05;soft(color,x,rng(),r,r*1.6,i%2?'rgba(110,86,48,.22)':'rgba(70,56,40,.2)');}
+      for(let i=0;i<110;i++){const x=rng(),y=rng();line(color,[[x,y],[x+.007,y+.025],[x-.003,y+.046]],'rgba(52,38,26,.22)',1);line(relief,[[x,y],[x+.007,y+.025],[x-.003,y+.046]],'#666',1);}
+      grime(.45,'rgba(60,40,26,.45)');blood(.27,.68,.026,.08,true);
     }else if(tile===ENEMY_SURFACE.fur){
-      for(let i=0;i<5800;i++){
-        const x=rng(),y=rng(),len=.008+rng()*.027;line(color,[[x,y],[x+.003,y+len]],i%2?'rgba(49,42,35,.25)':'rgba(255,246,224,.14)',.8);
-        line(relief,[[x,y],[x+.003,y+len]],i%2?'#737373':'#8c8c8c',.9);
+      color.fillStyle='#cfc8b8';color.fillRect(0,0,TILE,TILE);
+      for(let i=0;i<6400;i++){
+        const x=rng(),y=rng(),len=.01+rng()*.035;line(color,[[x,y],[x+.004*(rng()-.5),y+len]],i%2?'rgba(36,30,24,.32)':'rgba(255,246,224,.12)',.8);
+        line(relief,[[x,y],[x+.003,y+len]],i%2?'#707070':'#8e8e8e',.9);
       }
-      blood(.24,.53,.037,.09,true);blood(.34,.73,.017,.06);
+      for(let i=0;i<30;i++){const x=rng(),y=rng(),r=.01+rng()*.03;path(color,blob(x,y,r,r,.7),'rgba(72,52,46,.6)');}
+      blood(.24,.53,.034,.08,true);blood(.34,.73,.016,.05);
     }
     for(const ctx of [color,mask,relief])ctx.restore();
   }

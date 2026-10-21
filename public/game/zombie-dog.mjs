@@ -1,93 +1,123 @@
 import * as T from './three.module.js';
-import {applyHitReaction} from './zombies.mjs?v=124';
-import {makeRedEyeMaterial,makeEyeGeometry} from './enemy-faces.mjs?v=63';
-import {ENEMY_SURFACE,markEnemySurface} from './enemy-surfaces.mjs?v=63';
+import {applyHitReaction} from './zombies.mjs?v=133';
+import {makeRedEyeMaterial,makeEyeGeometry} from './enemy-faces.mjs?v=133';
+import {ENEMY_SURFACE,markEnemySurface} from './enemy-surfaces.mjs?v=133';
+import {paint,tube,sweep,shard,uvWindow,pooledLump} from './enemy-sculpt.mjs?v=133';
 const clamp=T.MathUtils.clamp;
 export const DOG_SPEED_MULTIPLIER=1.25;
 export const RARE_DOG_SPEED_MULTIPLIER=1.5;
 
 export function createZombieDogRig({rng=Math.random,rare=false}={}){
   const group=new T.Group(),root=new T.Group();group.add(root);root.position.set(0,.56,-.28);
-  const resources={geometries:new Set(),materials:new Set()};
+  const resources={geometries:new Set(),materials:new Set()},rand=(a,b)=>a+(b-a)*rng();
   const material=(color,roughness=.88)=>{const m=new T.MeshStandardMaterial({color,roughness,vertexColors:true});resources.materials.add(m);return m;};
-  const fur=material(rare?0x252d35:[0x514e43,0x444940,0x64584b][Math.floor(rng()*3)]),skin=material(rare?0x6f7880:0x858675),dark=material(0x20171a),scar=material(0x59423c),teeth=material(0xc3b79b),leather=material(0x3e3029),metal=material(0x897f64,.55),eye=makeRedEyeMaterial(resources);
-  for(const [m,tile] of [[fur,ENEMY_SURFACE.fur],[skin,ENEMY_SURFACE.skin],[scar,ENEMY_SURFACE.wound],[teeth,ENEMY_SURFACE.bone],[leather,ENEMY_SURFACE.leather]])markEnemySurface(m,tile);
+  const fur=material(rare?0x20262c:[0x4a463c,0x3d4139,0x5a4e42][Math.floor(rng()*3)]),skin=material(rare?0x5f676d:0x6f6e60),dark=material(0x150e10),scar=material(0x59423c),teeth=material(0xb0a37f),leather=material(0x3a2c25),metal=material(0x6f6450,.55),gum=material(0x4c2026,.45),bone=material(0xb6aa8a,.66),eye=makeRedEyeMaterial(resources);
+  for(const [m,tile] of [[fur,ENEMY_SURFACE.fur],[skin,ENEMY_SURFACE.skin],[scar,ENEMY_SURFACE.wound],[gum,ENEMY_SURFACE.wound],[teeth,ENEMY_SURFACE.bone],[bone,ENEMY_SURFACE.bone],[leather,ENEMY_SURFACE.leather]])markEnemySurface(m,tile);
   scar.color.setHex(0x70212b);scar.roughness=.48;
-  function own(g){const p=g.attributes.position,c=[];for(let i=0;i<p.count;i++){const v=.87+.13*Math.sin(p.getX(i)*7+p.getZ(i)*9)**2;c.push(v,v*.99,v*.96);}g.setAttribute('color',new T.Float32BufferAttribute(c,3));resources.geometries.add(g);return g;}
-  const ellipsoid=own(new T.SphereGeometry(1,16,12)),cone=own(new T.ConeGeometry(1,1,8)),cube=own(new T.BoxGeometry(1,1,1)),eyeGeo=own(makeEyeGeometry()),faceGeo=own(new T.SphereGeometry(1,12,8));
-  function shape(parent,geo,m,pos,scale){const o=new T.Mesh(geo,m);o.position.set(...pos);o.scale.set(...scale);o.castShadow=o.receiveShadow=true;parent.add(o);return o;}
-  const ell=(p,m,pos,s)=>shape(p,ellipsoid,m,pos,s),box=(p,m,pos,s)=>shape(p,cube,m,pos,s),joint=(p,pos,name)=>{const j=new T.Group();j.name=name;j.position.set(...pos);p.add(j);return j;};
-  const detail=(p,m,pos,s)=>shape(p,faceGeo,m,pos,s);
-  ell(root,fur,[0,0,-.03],[.17,.17,.24]);ell(root,skin,[0,.02,.17],[.13,.13,.21]);
+  function own(g,opts){resources.geometries.add(g);if(!g.attributes.color)paint(g,{amount:.18,ao:.3,...opts});return g;}
+  const eyeGeo=own(makeEyeGeometry(),{amount:.03,ao:0}),bead=own(new T.SphereGeometry(1,8,6));
+  function shape(p,geo,m,pos=[0,0,0],scale=[1,1,1],rot){const o=new T.Mesh(geo,m);o.position.set(...pos);o.scale.set(...scale);if(rot)o.rotation.set(...rot);o.castShadow=o.receiveShadow=true;p.add(o);return o;}
+  const L=(p,m,pos,s,opts={},rot)=>shape(p,own(pooledLump(rng,opts,.3,{amount:.18,ao:.3})),m,pos,s,rot);
+  const S=(p,m,points,r,opts={})=>shape(p,own(uvWindow(sweep(rng,points,r,opts),rng,.25)),m);
+  const dot=(p,m,pos,s,rot)=>shape(p,bead,m,pos,s,rot);
+  const spike=(p,m,pos,s,rot,bend=.2)=>shape(p,own(shard(rng,{bend})),m,pos,s,rot);
+  // A body tube laid along +Z: ring "depth" is vertical and the tube's front
+  // (belly option) faces down.
+  const along=(p,m,rings,opts,pos=[0,0,0])=>shape(p,own(tube(rng,rings,{sides:14,...opts}),{amount:.22,ao:.35}),m,pos,[1,1,1],[Math.PI/2,0,0]);
+  const joint=(p,pos,name)=>{const j=new T.Group();j.name=name;j.position.set(...pos);p.add(j);return j;};
+  // Bony haunches and jutting hip bones.
+  L(root,fur,[0,.0,-.04],[.15,.15,.17],{rough:.22});
+  for(const side of [-1,1])L(root,bone,[side*.085,.11,-.02],[.03,.025,.05],{rough:.2});
   const spine=joint(root,[0,.02,.42],'dog chest');
-  const torso=ell(spine,fur,[0,.005,-.08],[.20,.23,.35]);
-  ell(spine,fur,[0,.065,.19],[.145,.205,.16]);
-  // Gaunt flank, coarse fur silhouette, old wounds and raised rib contours.
-  for(const side of [-1,1]){
-    ell(spine,skin,[side*.163,.01,-.18],[.03,.135,.21]);
-    for(let i=0;i<4;i++){const rib=ell(spine,fur,[side*.18,-.004,-.27+i*.087],[.025,.142,.014]);rib.rotation.z=side*.14;}
-    ell(spine,scar,[side*.17,.07,.125],[.025,.075,.057]);
-    for(let i=0;i<4;i++){const tuft=shape(spine,cone,fur,[side*.13,.18,-.24+i*.11],[.034,.075,.05]);tuft.rotation.z=side*-.4;}
-  }
+  // Starved hound: deep keel chest, a waist tucked up under the spine.
+  const torso=along(spine,fur,[[-.44,.12,.12,{z:-.02}],[-.32,.085,.09,{z:-.07}],[-.2,.12,.15,{z:-.03}],[-.06,.15,.2,{z:.01}],[.07,.145,.21,{z:.02}],[.17,.11,.15,{z:-.03}]],{rough:.06,ribs:rare?.05:.09,ribRange:[.4,.85],ribFreq:30,folds:.04});
+  // Ragged neck ruff and mangy tufts down the spine.
+  along(spine,fur,[[.12,.1,.12,{z:-.06}],[.22,.09,.1,{z:-.12}],[.3,.075,.08,{z:-.17}]],{rough:.12,ragged:.02});
+  for(let i=0;i<9;i++)L(spine,i%3?fur:skin,[0,.2-i*.012*(i>5?2:0)-(i>5?.04:0),-.36+i*.065],[.02,.022,.03],{rough:.25});
+  for(let i=0;i<14;i++){const side=i%2?1:-1;spike(spine,fur,[side*rand(.05,.11),rand(.12,.2),rand(-.36,.2)],[.025,rand(.05,.09),.02],[-.9,0,side*rand(.3,.8)]);}
+  // Torn hide on one flank: raw muscle and bare ribs.
+  const torn=rng()<.5?-1:1;
+  L(spine,scar,[torn*.135,-.01,-.02],[.03,.1,.13],{rough:.4});
+  for(let i=0;i<4;i++)S(spine,bone,[[torn*.13,.11,-.12+i*.06],[torn*.155,.0,-.11+i*.06],[torn*.13,-.11,-.09+i*.06]],.009,{sides:5});
+  for(const side of [-1,1])L(spine,scar,[side*.15,.06,.12],[.022,.05,.04],{rough:.4});
   const head=joint(spine,[0,.18,.32],'dog head');
-  ell(head,fur,[0,.018,.015],[.135,.148,.18]);ell(head,fur,[0,-.023,.15],[.095,.07,.19]);
-  ell(head,skin,[0,-.005,.21],[.081,.055,.10]);ell(head,dark,[0,-.014,.306],[.068,.043,.037]);
+  // A long, narrow skull: heavy brow, gaunt cheeks, a lipless muzzle.
+  L(head,fur,[0,.03,.0],[.11,.11,.15],{rough:.12,pull:[0,0,-1]});
+  L(head,skin,[0,-.01,.17],[.07,.055,.14],{rough:.1,pull:[0,0,1]});
+  L(head,dark,[0,-.006,.3],[.05,.032,.028],{rough:.1});
+  for(const s of [-1,1])dot(head,dark,[s*.016,-.004,.322],[.009,.008,.006]);
   for(const side of [-1,1]){
-    const socket=ell(head,dark,[side*(rare?.115:.110),rare?.066:.049,rare?.153:.109],[.039,.026,.021]);socket.rotation.z=side*.27;
-    const glow=shape(head,eyeGeo,eye,[side*(rare?.115:.114),rare?.066:.047,rare?.173:.135],[.025,.012,.015]);glow.rotation.z=side*.25;glow.name=rare?'Ashfang red eye':'Red eye';
-    if(!rare){const brow=ell(head,fur,[side*.097,.086,.120],[.054,.025,.043]);brow.rotation.z=side*.38;brow.name='Scowling brow';}
-    const ear=joint(head,[side*.084,.119,-.048],'dog ear');ear.rotation.z=side*-.24;ear.rotation.x=-.13;
-    shape(ear,cone,fur,[0,.064,0],[.064,.18,.069]);shape(ear,cone,scar,[0,.059,.027],[.034,.12,.026]);
-    ell(head,scar,[side*.096,-.039,.135],[.025,.04,.064]);
-    const lip=detail(head,skin,[side*.064,-.034,.221],[.024,.016,.090]);lip.rotation.z=-side*.15;lip.name='Curled upper lip';
-    const fold=detail(head,dark,[side*.080,-.016,.174],[.007,.026,.043]);fold.rotation.z=side*.33;
+    dot(head,dark,[side*(rare?.115:.088),rare?.066:.05,rare?.153:.105],[.034,.024,.02],[0,0,side*.27]);
+    const glow=shape(head,eyeGeo,eye,[side*(rare?.116:.092),rare?.066:.05,rare?.18:.12],rare?[.024,.012,.015]:[.019,.009,.012]);glow.rotation.z=side*.25;glow.name=rare?'Ashfang red eye':'Red eye';
+    if(!rare){const brow=L(head,fur,[side*.075,.09,.105],[.045,.018,.035],{rough:.2});brow.rotation.z=side*.38;brow.name='Scowling brow';}
+    // Ears: one pricked, one torn to a ragged stump.
+    const ear=joint(head,[side*.07,.115,-.05],'dog ear');ear.rotation.z=side*-.3;ear.rotation.x=-.25;
+    const tornEar=side===torn;
+    spike(ear,fur,[0,0,0],[.05,tornEar?.08:.15,.03],[0,0,0],.15);spike(ear,scar,[0,.005,.012],[.028,tornEar?.06:.1,.012],[0,0,0],.15);
+    L(head,skin,[side*.06,-.03,.12],[.022,.035,.09],{rough:.2});
+    const lip=L(head,gum,[side*.05,-.04,.2],[.016,.012,.09],{rough:.3});lip.rotation.z=-side*.15;lip.name='Curled upper lip';
+    L(head,dark,[side*.058,-.016,.165],[.006,.02,.04],{rough:.2},[0,0,side*.33]);
   }
-  for(const z of [.181,.217])detail(head,fur,[0,.042,z],[.069,.009,.013]);
+  for(const z of [.181,.217])dot(head,fur,[0,.045,z],[.05,.008,.012]);
   const jaw=joint(head,[0,-.054,.043],'dog jaw');
-  ell(jaw,dark,[0,-.006,.121],[.079,.023,.15]);ell(jaw,fur,[0,-.027,.116],[.078,.03,.16]);
-  for(const side of [-1,1])for(let i=0;i<4;i++){
-    const upper=shape(head,cone,teeth,[side*(.062-i*.007),i===0?-.077:-.067,i===0?.262:.115+i*.04],[.010,i===0?.068:.030,.012]);upper.rotation.z=Math.PI;
-    shape(jaw,cone,teeth,[side*(.059-i*.007),.016,.077+i*.04],[.010,i===0?.048:.025,.011]);
+  L(jaw,dark,[0,-.004,.121],[.06,.02,.14],{rough:.1});L(jaw,skin,[0,-.024,.12],[.06,.024,.15],{rough:.15});
+  L(jaw,gum,[0,.008,.12],[.052,.008,.13],{rough:.2});
+  for(const side of [-1,1])for(let i=0;i<5;i++){
+    const fang=i===0,z=fang?.255:.1+i*.035,len=fang?.06:.022+rng()*.012;
+    if(!fang&&rng()<.2)continue;
+    spike(head,teeth,[side*(.052-i*.004),-.05,z],[.009,len,.009],[Math.PI+rand(-.15,.15),0,0],.1);
+    spike(jaw,teeth,[side*(.05-i*.004),.012,z-.15*(i?1:0)-(fang?.03:0)],[.008,fang?.045:len*.8,.008],[rand(-.15,.15),0,0],.1);
   }
-  const collar=own(new T.TorusGeometry(.126,.026,8,24));shape(spine,collar,leather,[0,.15,.25],[1,1,1]).rotation.x=.32;
-  ell(spine,metal,[0,.01,.353],[.033,.04,.009]);
+  const collar=own(new T.TorusGeometry(.12,.022,6,20));shape(spine,collar,leather,[0,.15,.25],[1,1,1]).rotation.x=.32;
+  L(spine,metal,[0,.01,.353],[.03,.036,.01],{rough:.1});
+  // A thin, rat-like tail with a few clumps of fur.
   const tail=joint(root,[0,.045,-.21],'dog tail');tail.rotation.x=-.34;
-  const tailBase=ell(tail,fur,[0,-.04,-.16],[.053,.057,.20]);tailBase.rotation.x=-.24;
-  const tailTip=joint(tail,[0,-.09,-.30],'dog tail tip');ell(tailTip,fur,[0,-.04,-.10],[.032,.04,.13]);
+  S(tail,skin,[[0,0,0],[0,-.04,-.12],[0,-.08,-.25]],t=>.03-t*.012,{sides:6,rough:.15});
+  L(tail,fur,[0,-.03,-.08],[.032,.03,.06],{rough:.3});
+  const tailTip=joint(tail,[0,-.09,-.30],'dog tail tip');
+  S(tailTip,skin,[[0,.0,.02],[0,-.03,-.08],[0,-.06,-.17]],t=>.018*(1-t)+.003,{sides:5,rough:.15});
   const legs=[],arms=[],pieces=[{node:root,a:'pelvis',b:'chest',frame:true},{node:spine,a:'pelvis',b:'chest',frame:true},{node:head,a:'chest',b:'skull'}];
+  const limb=(p,m,rings,opts={})=>shape(p,own(tube(rng,rings,{sides:9,rough:.1,...opts}),{amount:.2,ao:.3}),m);
+  function paw(p,front){
+    L(p,fur,[0,front?-.028:-.033,.04],[.045,.035,.075],{rough:.15,flat:-.5});
+    for(let c=0;c<4;c++){const x=(c-1.5)*.02;L(p,fur,[x,front?-.04:-.045,.1],[.013,.016,.02],{rough:.2});spike(p,dark,[x,front?-.048:-.052,.118],[.007,.03,.007],[Math.PI/2+.4,0,0],.3);}
+  }
   for(const [i,side] of [-1,1].entries()){
     const t=i?'R':'L';
     const rear=joint(root,[side*.14,-.015,-.045],t+' rear hip');
-    ell(rear,fur,[0,-.105,.023],[.078,.145,.096]);
-    const calf=joint(rear,[0,-.225,.055],t+' rear hock');ell(calf,skin,[0,-.095,-.021],[.036,.11,.042]);
-    const foot=joint(calf,[0,-.203,-.045],t+' rear paw');ell(foot,fur,[0,-.033,.05],[.054,.051,.093]);
-    for(let c=0;c<3;c++)ell(foot,dark,[(c-1)*.028,-.031,.126],[.009,.009,.022]);
+    limb(rear,fur,[[-.22,.035,.045,{z:.05}],[-.14,.055,.08,{z:.04}],[-.05,.07,.1,{z:.02}],[.04,.075,.11]],{folds:.08});
+    const calf=joint(rear,[0,-.225,.055],t+' rear hock');
+    L(calf,bone,[0,-.005,-.012],[.022,.026,.024],{rough:.2});
+    limb(calf,skin,[[-.205,.02,.024,{z:-.045}],[-.1,.025,.03,{z:-.02}],[.0,.032,.036]],{ridge:.15,ridgeAngle:-Math.PI/2});
+    const foot=joint(calf,[0,-.203,-.045],t+' rear paw');paw(foot,false);
     legs.push({pivot:rear,calf,foot});pieces.push({node:rear,a:t+'hip',b:t+'knee'},{node:calf,a:t+'knee',b:t+'ankle'},{node:foot,a:t+'ankle',b:t+'toe'});
-    const front=joint(spine,[side*.155,-.04,.14],t+' foreleg');ell(front,fur,[0,-.10,0],[.056,.135,.07]);
-    const forearm=joint(front,[0,-.22,0],t+' front elbow');ell(forearm,skin,[0,-.10,.013],[.032,.126,.035]);
-    const hand=joint(forearm,[0,-.21,.02],t+' front paw');ell(hand,fur,[0,-.025,.045],[.058,.051,.089]);
-    for(let c=0;c<3;c++)ell(hand,dark,[(c-1)*.03,-.026,.119],[.01,.009,.023]);
+    const front=joint(spine,[side*.155,-.04,.14],t+' foreleg');
+    limb(front,fur,[[-.22,.032,.036],[-.12,.045,.055],[-.02,.06,.07],[.06,.07,.08]],{folds:.08});
+    const forearm=joint(front,[0,-.22,0],t+' front elbow');
+    L(forearm,bone,[0,0,-.02],[.024,.03,.024],{rough:.2});
+    limb(forearm,skin,[[-.215,.022,.024,{z:.015}],[-.1,.024,.028],[.0,.03,.034]],{ridge:.15});
+    const hand=joint(forearm,[0,-.21,.02],t+' front paw');paw(hand,true);
     arms.push({pivot:front,forearm,hand});pieces.push({node:front,a:t+'shoulder',b:t+'elbow'},{node:forearm,a:t+'elbow',b:t+'wrist'},{node:hand,a:t+'wrist',b:t+'palm'});
   }
   if(rare){
-    const bone=markEnemySurface(material(0xd6cbb4,.72),ENEMY_SURFACE.bone),ember=material(0x8edbe0,.6);ember.emissive.set(0x40bbc7);ember.emissiveIntensity=.6;
+    const ember=material(0x8edbe0,.6);ember.emissive.set(0x40bbc7);ember.emissiveIntensity=.6;
     // A pale armored skull and swept horns change the silhouette, rather than
     // relying on a color swap to announce the faster hound.
-    ell(head,bone,[0,.063,.048],[.141,.125,.18]).name='Ashfang skull mask';
-    ell(head,bone,[0,.023,.224],[.081,.055,.129]).name='Ashfang long muzzle';
+    L(head,bone,[0,.07,.035],[.125,.105,.165],{rough:.12,pull:[0,0,.6]}).name='Ashfang skull mask';
+    L(head,bone,[0,.02,.22],[.075,.05,.13],{rough:.12,pull:[0,0,1]}).name='Ashfang long muzzle';
     for(const side of [-1,1]){
-      const cheek=ell(head,bone,[side*.113,-.005,.141],[.027,.057,.09]);cheek.name='Ashfang cheek plate';
-      const horn=shape(head,cone,bone,[side*.117,.164,-.10],[.038,.21,.043]);horn.rotation.x=-.65;horn.rotation.z=-side*.3;horn.name='Ashfang swept horn';
-      const brow=ell(head,bone,[side*.097,.100,.154],[.054,.025,.037]);brow.rotation.z=side*.38;brow.name='Ashfang scowling brow';
-      ell(spine,bone,[side*.172,.105,.12],[.055,.117,.12]).name='Ashfang shoulder plate';
-      for(let i=0;i<3;i++){const rib=ell(spine,bone,[side*.187,-.01,-.23+i*.09],[.026,.15,.018]);rib.rotation.z=side*.17;rib.name='Ashfang exposed rib';}
-      shape(jaw,cone,bone,[side*.058,-.008,.26],[.014,.085,.014]).name='Ashfang saber fang';
+      L(head,bone,[side*.108,-.005,.141],[.025,.05,.085],{rough:.2}).name='Ashfang cheek plate';
+      spike(head,bone,[side*.1,.13,-.06],[.04,.24,.045],[-1.05,0,-side*.35],.35).name='Ashfang swept horn';
+      const brow=L(head,bone,[side*.097,.1,.154],[.05,.022,.034],{rough:.2});brow.rotation.z=side*.38;brow.name='Ashfang scowling brow';
+      L(spine,bone,[side*.15,.1,.12],[.05,.1,.11],{rough:.2}).name='Ashfang shoulder plate';
+      for(let i=0;i<3;i++){const rib=S(spine,bone,[[side*.12,.12,-.23+i*.09],[side*.165,.0,-.22+i*.09],[side*.13,-.12,-.2+i*.09]],.012,{sides:5});rib.name='Ashfang exposed rib';}
+      spike(jaw,bone,[side*.05,-.008,.25],[.014,.085,.014],[.1,0,0],.1).name='Ashfang saber fang';
     }
     for(let i=0;i<6;i++){
-      const spike=shape(spine,cone,bone,[0,.235,-.34+i*.106],[.040,.13+(i%2)*.055,.060]);spike.rotation.x=-.5;spike.name='Ashfang dorsal ridge';
-      ell(spine,ember,[0,.217,-.33+i*.106],[.035,.013,.034]).name='Ashfang spectral seam';
+      spike(spine,bone,[0,.2,-.34+i*.106],[.04,.13+(i%2)*.055,.05],[-.5,0,0],.25).name='Ashfang dorsal ridge';
+      L(spine,ember,[0,.19,-.33+i*.106],[.03,.012,.03],{rough:.2}).name='Ashfang spectral seam';
     }
-    const barb=shape(tailTip,cone,bone,[0,-.06,-.23],[.065,.19,.055]);barb.rotation.x=-Math.PI/2;barb.name='Ashfang barbed tail';
+    spike(tailTip,bone,[0,-.06,-.18],[.06,.19,.05],[-Math.PI/2,0,0],.1).name='Ashfang barbed tail';
   }
   group.scale.setScalar(rare?1.06+rng()*.045:.97+rng()*.06);
   return {group,root,spine,torso,head,jaw,tail,tailTip,legs,arms,pieces,resources,style:rare?'ashfang hound':'zombie dog',dog:true,rareDog:rare,brute:false,phase:rng()*Math.PI*2,stride:.75+rng()*.12,attackTime:-1,flinch:0,flinchDirection:0,legHit:0};
