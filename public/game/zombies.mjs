@@ -31,25 +31,69 @@ const BUILDS={
 // Gait personality (v124). Every walker rolls its own drag leg, sway, hunch,
 // arm carriage, bob and limb timing, so a crowd moves differently without
 // extra assets. Arms and hips run slightly out of step with the legs.
-export const ARM_POSES=Object.freeze(['reach','dangle','mixed','clutch']);
+export const ARM_POSES=Object.freeze(['reach','dangle','mixed','clutch','broken','claw']);
+// How each enemy attacks (v137). Every style lands on the same contact frame;
+// only the body language differs.
+export const ATTACK_STYLES=Object.freeze(['grabber','swiper','biter','flailer','slammer','pouncer']);
 export function rollGait(rng=Math.random,{feral=false,brute=false}={}){
   const pick=rng();
   return {
     dragLeg:rng()<.5?0:1,
     sway:.6+rng()*.9,
     hunch:feral?rng()*.06:brute?.05+rng()*.1:rng()*.24,
-    arms:feral?'clutch':brute?(pick<.5?'dangle':'clutch'):pick<.3?'reach':pick<.55?'dangle':pick<.75?'mixed':'clutch',
+    arms:feral?'clutch':brute?(pick<.5?'dangle':'clutch'):pick<.22?'reach':pick<.4?'dangle':pick<.55?'mixed':pick<.7?'clutch':pick<.85?'broken':'claw',
     reachArm:rng()<.5?0:1,
     armLag:.15+rng()*.55,
     hipLag:-.25+rng()*.5,
     bob:.6+rng()*.8,
-    scuff:.35+rng()*.6
+    scuff:.35+rng()*.6,
+    attack:(r=>feral?(r<.65?'pouncer':'swiper'):brute?(r<.6?'slammer':'grabber'):r<.28?'grabber':r<.52?'swiper':r<.78?'biter':'flailer')(rng())
   };
 }
-const DEFAULT_GAIT=Object.freeze({dragLeg:0,sway:1,hunch:0,arms:'clutch',reachArm:0,armLag:0,hipLag:0,bob:1,scuff:0});
+const DEFAULT_GAIT=Object.freeze({dragLeg:0,sway:1,hunch:0,arms:'clutch',reachArm:0,armLag:0,hipLag:0,bob:1,scuff:0,attack:'grabber'});
 // Arm carriage: base pitch, swing, forearm bend.
-const ARM_CARRIAGE={reach:[-1.12,.10,-.12],dangle:[-.10,.30,-.06],clutch:[-.30,.22,-.23]};
-
+// Arm carriage: base pitch, swing, forearm bend. 'dead' is a broken arm that
+// flops lifelessly; 'claw' holds both hands up, grasping at the air.
+const ARM_CARRIAGE={reach:[-1.12,.10,-.12],dangle:[-.10,.30,-.06],clutch:[-.30,.22,-.23],dead:[.06,.5,-.02],claw:[-1.05,.12,-1.05]};
+// Attack poses per style (v137). Arms blend toward absolute targets (so an
+// arm already reaching does not end up overhead); torso, head and jaw are
+// additive. t is time into the attack, windup 0→1 to the contact frame,
+// strike 0→1 just after it, recover 1→0 at the end.
+function attackPose(style,t,windup,strike,recover,lead){
+  const hit=Math.sin(strike*Math.PI/2),settle=recover,blend=Math.min(1,t/.12)**2*(3-2*Math.min(1,t/.12))*settle;
+  const o={sx:0,sy:0,rx:0,rz:0,hx:0,hy:0,jaw:0,weight:blend,arms:[null,null]},mix=(a,b,k)=>a+(b-a)*k;
+  const arm=(px,pz,fx,hx=0)=>({px,pz,fx,hx});
+  const L=lead,O=1-lead,ls=L?1:-1;
+  if(style==='swiper'){
+    // One arm cocks high and out, then backhands down across the body.
+    o.sy=ls*(.35*windup-.75*hit)*settle;o.sx=(.05*windup+.2*hit)*settle;o.hy=-o.sy*.5;o.jaw=.18*windup*settle;
+    o.arms[L]=arm(mix(-.6-1.9*windup,-.95,hit),mix(.6*windup,-.75,hit),mix(-1.3*windup,-.25,hit),-.4*hit);
+    o.arms[O]=arm(.25,-.1,-.45);
+  }else if(style==='biter'){
+    // Hug you in, rear the head back, then lunge in with the jaw.
+    const thrust=Math.sin(strike*Math.PI)*settle;
+    o.sx=-.1*windup*settle+.42*thrust;o.rx=.1*thrust;o.rz=.1*thrust;o.hx=-.35*windup*(1-strike)*settle+.4*thrust;o.jaw=(.55*windup*(1-strike)+.1)*settle;
+    for(const j of [0,1])o.arms[j]=arm(mix(-1.35,-1.15,hit),-.5,-1.2,-.4);
+  }else if(style==='flailer'){
+    // Both arms windmill wildly.
+    o.sy=Math.sin(t*19)*.22*settle;o.sx=(.12*windup+.12*hit)*settle;o.jaw=(.25+Math.sin(t*23)*.1)*settle;o.hy=Math.sin(t*15)*.2*settle;
+    for(const j of [0,1])o.arms[j]=arm(-1.55+Math.sin(t*18+j*Math.PI)*1.15,(j?1:-1)*.3*Math.sin(t*13+j),-.6+Math.sin(t*18+j*Math.PI+1)*.5,Math.sin(t*20+j)*.4);
+  }else if(style==='slammer'){
+    // Both fists rise overhead, then hammer down with the whole torso.
+    o.sx=(-.25*windup+.6*hit)*settle;o.rx=.12*hit*settle;o.hx=(-.2*windup+.25*hit)*settle;o.jaw=.3*windup*settle;
+    for(const j of [0,1])o.arms[j]=arm(mix(-.8-2.1*windup,-.45,hit),-.15,mix(-.6*windup,-.2,hit));
+  }else if(style==='pouncer'){
+    // Coil down, spring forward and rake with both claws in turn.
+    o.sx=(.35*windup-.25*hit)*settle;o.rz=.18*hit*settle;o.hx=-.25*windup*settle;o.jaw=.45*windup*settle;
+    for(const j of [0,1]){const lag=j===lead?0:.35,h=Math.sin(Math.min(1,Math.max(0,strike-lag)/(1-lag))*Math.PI/2);o.arms[j]=arm(mix(-.7-1.6*windup,-.35,h),(j?1:-1)*.35*windup*(1-h),mix(-1.0*windup,-.2,h),-.5*h);}
+  }else{
+    // Grabber: both hands seize you, then yank you in to the chest.
+    const lunge=Math.sin(strike*Math.PI)*settle;
+    o.sx=-.12*windup*(1-strike)*settle+.3*lunge;o.rx=.08*lunge;o.rz=.08*lunge;o.sy=ls*Math.sin(Math.min(1,t/.85)*Math.PI)*.2;o.hx=.12*windup*(1-strike)*settle-.15*lunge;o.jaw=.3*Math.sin(windup*Math.PI/2)*(1-strike*.7)*settle;
+    for(const j of [0,1]){const k=j===lead?1:.85;o.arms[j]=arm(mix(-.9-.85*windup,-1.15,hit)*k,-.32*windup,mix(-.35*windup,-1.35,hit)*k,-.35*hit);}
+  }
+  return o;
+}
 // Crawlers (v124): enough leg damage drops walkers and ferals to the floor.
 export const CRAWL=Object.freeze({legShare:.4,speed:.42,height:.8,drop:.55,hip:.22,pitch:1.42});
 export function noteLegDamage(e,amount){
@@ -561,33 +605,31 @@ export function animateZombie(e,dt,distance,moved,look=null){
   let contact=false;
   if(e.staggerLeft>0||e.crawlDrop>0)e.attackTime=-1;
   if(!(e.staggerLeft>0)&&!(e.crawlDrop>0)&&e.attackTime<0&&distance<1.65&&e.attack<=0){e.attackTime=0;e.attackHand=1-e.attackHand;e.attack=.95+(e.brute?.25:0);}
-  let strike=0,windup=0;
-  if(e.attackTime>=0){const prev=e.attackTime;e.attackTime+=dt;const hit=e.brute?.46:.34;windup=clamp(e.attackTime/hit,0,1);strike=clamp((e.attackTime-hit)/.17,0,1);contact=prev<hit&&e.attackTime>=hit;
-    // Rear back, then lunge with the whole body and snap the jaw.
-    const lunge=Math.sin(strike*Math.PI)*(1-clamp((e.attackTime-.6)/.25,0,1));
-    e.spine.rotation.y+=(e.attackHand?1:-1)*Math.sin(Math.min(1,e.attackTime/.85)*Math.PI)*.28;
-    e.spine.rotation.x+=-.12*windup*(1-strike)+.3*lunge;e.root.rotation.x+=.08*lunge;e.root.position.z+=.08*lunge;
-    e.head.rotation.x+=.12*windup*(1-strike)-.15*lunge;e.jaw.rotation.x+=.3*Math.sin(windup*Math.PI/2)*(1-strike*.7);
-    if(e.attackTime>.85){e.attackTime=-1;strike=windup=0;}
+  let attack=null;
+  if(e.attackTime>=0){const prev=e.attackTime;e.attackTime+=dt;const hit=e.brute?.46:.34,windup=clamp(e.attackTime/hit,0,1),strike=clamp((e.attackTime-hit)/.17,0,1);contact=prev<hit&&e.attackTime>=hit;
+    attack=attackPose(g.attack||'grabber',e.attackTime,windup,strike,1-clamp((e.attackTime-.54)/.31,0,1),e.attackHand);
+    e.spine.rotation.x+=attack.sx;e.spine.rotation.y+=attack.sy;e.root.rotation.x+=attack.rx;e.root.position.z+=attack.rz;
+    e.head.rotation.x+=attack.hx;e.head.rotation.y+=attack.hy;e.jaw.rotation.x+=attack.jaw;
+    if(e.attackTime>.85){e.attackTime=-1;attack=null;}
   }
   for(let j=0;j<2;j++){
     const a=Math.sin(p+j*Math.PI-g.armLag),side=j?1:-1,leg=e.legs[j],arm=e.arms[j],{hip:lh,knee:lk,foot:lf}=legPoses[j].pose;
     leg.pivot.rotation.set(lh,-pelvisYaw*.5,side*.025);leg.calf.rotation.x=lk;leg.foot.rotation.x=lf;
-    const pose=g.arms==='mixed'?(j===g.reachArm?'reach':'dangle'):g.arms,[base,swing,bend]=ARM_CARRIAGE[pose];
+    const pose=g.arms==='mixed'?(j===g.reachArm?'reach':'dangle'):g.arms==='broken'?(j===g.reachArm?'dead':'dangle'):g.arms,[base,swing,bend]=ARM_CARRIAGE[pose];
     // Arms hang from the shoulders and follow through: the forearm and hand
-    // trail the upper arm, and dangling arms swing wider and heavier.
+    // trail the upper arm, and dangling arms swing wider and heavier. A dead
+    // arm flops on a slack spring; clawing arms grasp at the air in turn.
+    const dead=pose==='dead',claw=pose==='claw';
     const shrug=springTo(e,'shrug'+j,0,dt,9,.4),reachTremble=pose==='reach'?Math.sin(t*7.3+j*2)*.025+Math.sin(t*3.1+j)*.03:0;
-    const ax=springTo(e,'arm'+j,base-a*swing*w-run*.14+reachTremble+(pose==='dangle'?-.08*Math.sin(t*.9+j)*(1-w):0),dt,pose==='dangle'?7.5:11,pose==='dangle'?.32:.55);
-    arm.pivot.rotation.set(ax,side*(pose==='reach'?.04:.09)-pelvisYaw*.4,side*(.10+Math.sin(p*.5)*.035)+shrug*side*.25);
-    const fx=springTo(e,'fore'+j,(e.feral?-.7:bend)-Math.max(0,a)*.18*w,dt,9,.4);
-    arm.forearm.rotation.set(fx,0,side*.055);
-    arm.hand.rotation.set(springTo(e,'hand'+j,(pose==='reach'?-.05:-.17)+(ax-base)*-.35,dt,8,.3),0,side*.13+Math.sin(t*1.7+j)*.05);
-    e.spine.rotation.z+=shrug*side*-.06;
-    if(e.attackTime>=0&&(j===e.attackHand||e.brute||e.attackTime<.6)){
-      const lead=j===e.attackHand||e.brute,recover=1-clamp((e.attackTime-.54)/.31,0,1),k=lead?1:.55;
-      arm.pivot.rotation.x+=(-.6*windup-1.1*Math.sin(strike*Math.PI/2))*recover*k;
-      arm.pivot.rotation.z+=side*(lead?.3:-.1)*windup*recover;arm.forearm.rotation.x-=.8*windup*(1-strike)*recover*k;arm.hand.rotation.x-=.35*recover*k;
-    }
+    const clawing=claw?Math.sin(t*3.4+j*Math.PI)*.28+Math.sin(t*7.9+j)*.06:0;
+    const ax=springTo(e,'arm'+j,base-a*swing*w-run*.14+reachTremble+clawing+(pose==='dangle'?-.08*Math.sin(t*.9+j)*(1-w):0),dt,dead?4:pose==='dangle'?7.5:11,dead?.12:pose==='dangle'?.32:.55);
+    arm.pivot.rotation.set(ax,side*(pose==='reach'?.04:claw?-.12:.09)-pelvisYaw*(dead?1.2:.4),side*(dead?.04:.10+Math.sin(p*.5)*.035)+shrug*side*.25);
+    const fx=springTo(e,'fore'+j,(e.feral?-.7:bend)-Math.max(0,a)*.18*w+(claw?Math.sin(t*3.4+j*Math.PI+.8)*.3:0),dt,dead?5:9,dead?.15:.4);
+    arm.forearm.rotation.set(fx,dead?Math.sin(t*1.3+j)*.25:0,side*(dead?-.12:.055));
+    arm.hand.rotation.set(springTo(e,'hand'+j,(pose==='reach'?-.05:claw?-.55+Math.sin(t*6.8+j*2)*.35:dead?.25:-.17)+(ax-base)*-.35,dt,dead?4:8,dead?.1:.3),0,side*.13+Math.sin(t*1.7+j)*.05);
+    e.spine.rotation.z+=shrug*side*-.06+(dead?side*.05:0);
+    const pose2=attack?.arms[j];
+    if(pose2){const k=attack.weight;arm.pivot.rotation.x+=(pose2.px-arm.pivot.rotation.x)*k;arm.pivot.rotation.z+=(side*(.1+pose2.pz)-arm.pivot.rotation.z)*k;arm.forearm.rotation.x+=(pose2.fx-arm.forearm.rotation.x)*k;arm.hand.rotation.x+=(pose2.hx-.17-arm.hand.rotation.x)*k;}
   }
   if(e.brute&&e.crouch>0){
     const crouch=clamp(e.crouch,0,1);

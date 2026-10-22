@@ -27,6 +27,19 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Attack styles and arm carriages (version 137)
+
+- **Attack styles:** each enemy rolls its own, and every style lands on the same contact frame, so damage timing is unchanged.
+  - **Grabbers** seize you with both hands and yank you in.
+  - **Swipers** cock one arm high and backhand down across the body, alternating arms.
+  - **Biters** pin you, rear the head back and lunge in jaw-first.
+  - **Flailers** windmill both arms wildly.
+  - **Brutes** usually slam both fists down overhead.
+  - **Ferals** usually coil, spring and rake with both claws in turn.
+  - Sir Blackthorn swipes like a swordsman, and the Gravewarden slams.
+- **Arm carriages:** two new ones while walking. A **broken arm** hangs dead and flops on a slack spring. **Clawing** zombies hold both hands up and grasp at the air. They join reaching, dangling, mixed and clutching arms.
+- **Blending:** attacks blend the arms toward their own pose rather than stacking on the carriage, so a reaching zombie's grab doesn't end with its arms overhead.
+
 ## Organic enemy motion (version 136)
 
 - **Planted feet:** walkers and ferals step instead of skating. During each stance the hip angle is solved so the planted ankle travels back at exactly ground speed, against the pelvis's own pitch. The pelvis height comes from the planted leg. Planted-foot slide dropped from about 0.97 to 0.20 metres per metre walked.

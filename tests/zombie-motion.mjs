@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import * as T from '../public/game/three.module.js';
-import {createZombieRig,animateZombie,rollGait,noteLegDamage,CRAWL,ARM_POSES} from '../public/game/zombies.mjs';
+import {createZombieRig,animateZombie,rollGait,noteLegDamage,CRAWL,ARM_POSES,ATTACK_STYLES} from '../public/game/zombies.mjs';
 
 // Seeded generator so every rig and gait is reproducible.
 function seeded(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
@@ -53,6 +53,30 @@ export function verifyZombieMotion(qa,frames){
     const upright=mean(cycle(walker(22,{hunch:0}),r=>r.spine.rotation.x)),hunched=mean(cycle(walker(22,{hunch:.22}),r=>r.spine.rotation.x));
     assert(hunched>upright+.18,'Hunch folds the spine forward');
   }
+
+  // ---- Attack styles: varied body language, identical hit timing --------------
+  {
+    const crowd=Array.from({length:60},(_,i)=>rollGait(seeded(500+i)));
+    assert(new Set(crowd.map(g=>g.attack)).size>=4,'A crowd attacks in several different ways');
+    assert(new Set(crowd.map(g=>g.arms)).size>=5,'A crowd carries its arms in several ways, including broken and clawing arms');
+    for(const g of crowd)assert(['grabber','swiper','biter','flailer'].includes(g.attack),'Walkers grab, swipe, bite or flail');
+    for(let i=0;i<20;i++){assert(['pouncer','swiper'].includes(rollGait(seeded(900+i),{feral:true}).attack));assert(['slammer','grabber'].includes(rollGait(seeded(950+i),{brute:true}).attack));}
+    const signatures=new Set();
+    for(const style of ATTACK_STYLES){
+      const e=walker(41,{attack:style});e.attack=0;let contacts=0,first=-1;const leadArm=[];
+      for(let i=0;i<60;i++){const c=animateZombie(e,1/60,1.1,0);if(c){contacts++;if(first<0)first=i;}if(i===26)leadArm.push(...e.arms.map(a=>+a.pivot.rotation.x.toFixed(2)),+e.head.rotation.x.toFixed(2),+e.spine.rotation.x.toFixed(2));}
+      assert.equal(contacts,1,`${style}: one strike, one contact`);assert.equal(first,20,`${style}: lands on the shared contact frame`);
+      signatures.add(leadArm.join(','));
+      assert(e.arms.every(a=>a.pivot.rotation.x>-3.3&&a.pivot.rotation.x<1),`${style}: arms stay in a plausible range`);
+    }
+    assert.equal(signatures.size,ATTACK_STYLES.length,'Every attack style strikes in a visibly different pose');
+    // A reaching zombie's grab blends to the grab pose rather than stacking above its head.
+    const reacher=walker(43,{arms:'reach',attack:'grabber'});reacher.attack=0;for(let i=0;i<20;i++)animateZombie(reacher,1/60,1.1,0);assert(reacher.arms.every(a=>a.pivot.rotation.x>-2.1),'Attacks take over the arms instead of adding to the carriage');
+    const broken=walker(44,{arms:'broken',reachArm:0});for(let i=0;i<90;i++)animateZombie(broken,1/60,6,broken.speed/60);
+    assert(broken.arms[0].pivot.rotation.x>-.6&&broken.arms[1].pivot.rotation.x>-.6,'A broken arm hangs instead of reaching');
+    const claw=walker(45,{arms:'claw'});const swings=cycle(claw,r=>r.arms[0].pivot.rotation.x);assert(mean(swings)<-.8&&range(swings)>.3,'Clawing arms stay raised and grasp at the air');
+  }
+  console.log('PASS: six attack styles (grab, swipe, bite, flail, slam, pounce) with distinct poses and the same single contact frame; broken and clawing arm carriages; type-appropriate styles for ferals and brutes.');
 
   // ---- Crawlers: leg damage, the drop, and the crawl pose -------------------
   {

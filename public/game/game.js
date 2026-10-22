@@ -5,8 +5,8 @@ import {createCurseUI,curseSummary} from './curse-ui.mjs?v=130';
 import {BOSS,WARDEN,bossPhase,dueSummons,lanceVolley,cooldownScale,segmentDistance,wakeStep,dressKnight,dressWarden,createBossEffects} from './blackthorn-boss.mjs?v=130';
 import {ENRAGE,enrageNearby} from './enrage.mjs?v=130';
 import {createCrowd,enemyBody,PLAYER_RADIUS,SPREAD} from './crowd.mjs?v=123';
-import {createLeaderboard} from './leaderboard.mjs?v=136';
-import {createChangelog} from './changelog.mjs?v=136';
+import {createLeaderboard} from './leaderboard.mjs?v=137';
+import {createChangelog} from './changelog.mjs?v=137';
 import {configureMinimap} from './minimap-settings.mjs?v=79';
 import {COMBAT,createWeaponRecoil,staggerLimits,advanceStagger,registerStagger,createCombatHud} from './combat-feedback.mjs?v=84';
 import {ARMOR,armorRank} from './armor.mjs?v=94';
@@ -28,17 +28,17 @@ import {createWeaponModel,updatePistolSlide} from './weapon-models.mjs?v=129';
 import {weaponSurfaces} from './weapon-surfaces.mjs?v=87';
 import {GRENADE_THROW,createGrenadeAssets,createGrenadeThrow} from './grenade-throw.mjs?v=44';
 import {POWERUPS,choosePowerup,powerupIcon,createPowerupAssets} from './powerups.mjs?v=129';
-import {createEnemyAssets} from './enemy-assets.mjs?v=136';
+import {createEnemyAssets} from './enemy-assets.mjs?v=137';
 import {createCombatLights} from './combat-lights.mjs?v=129';
 import {createLighting,prepareLightingMaterials,patchLightingMaterial} from './lighting.mjs?v=120';
 import {createEnvironmentLights} from './environment-lights.mjs?v=135';
 import {createEffectPool} from './effect-pool.mjs?v=47';
-import {animateZombieDog,DOG_SPEED_MULTIPLIER,RARE_DOG_SPEED_MULTIPLIER} from './zombie-dog.mjs?v=136';
+import {animateZombieDog,DOG_SPEED_MULTIPLIER,RARE_DOG_SPEED_MULTIPLIER} from './zombie-dog.mjs?v=137';
 import {UPPER_Y,UPPER_CEILING,UPPER_SPAWNS,hasUpperFloor,STAIR,EXTERIOR_STAIRS,supportBelow,stairHeight,stairAt,moveActor,updateActorHeight,buildVerticalNavigation,upperLocation,OLIVIA_ATTIC,setAtticOpen,isAtticOpen,inAttic} from './vertical.mjs?v=131';
 import {EASTER_EGG,buildOliviaAttic,boneChipModel} from './olivia.mjs?v=131';
 import {buildSecondFloor,drawUpperMap} from './second-floor.mjs?v=131';
 import {BELLA,BELLA_PAW,createBellaCompanion} from './bella.mjs?v=131';
-import {tagZombie,reactToHit,animateZombie,beginZombieDeath,updateZombieDeath,noteLegDamage,CRAWL} from './zombies.mjs?v=136';
+import {tagZombie,reactToHit,animateZombie,beginZombieDeath,updateZombieDeath,noteLegDamage,CRAWL} from './zombies.mjs?v=137';
 import {addEstateDetail} from './estate-detail.mjs?v=131';
 import {buildFacade,mansionRoofGeometry,PORTICO} from './facade.mjs?v=131';
 import {createReticleHud} from './reticles.mjs?v=116';
@@ -480,6 +480,8 @@ function makeElite(kind,x,z,y=0){
   const knight=kind==='knight',cfg=curseWaveConfig(wave,curse.rank);
   const e=makeZombie(x,z,!knight,false,false,y,false,{scale:knight?BOSS.scale:BRUTE.scale*WARDEN.scale});
   // Both use brute-sized collision and brute routes, whatever rig they wear.
+  // Sir Blackthorn cuts like a swordsman; the Gravewarden hammers down.
+  e.gait={...e.gait,attack:knight?'swiper':'slammer'};
   e.brute=true;e.elite=true;e.noEnrage=true;const body=enemyBody(e);e.radius=body.radius;e.bodyHeight=body.height;e.crouch=0;
   e.staggerProfile=staggerLimits(e);
   if(knight){e.boss=true;e.maxHp=e.hp=cfg.health*BOSS.healthMultiplier;e.speed=cfg.speed*BOSS.speed;const dress=dressKnight(e);e.orb=dress.orb;}
