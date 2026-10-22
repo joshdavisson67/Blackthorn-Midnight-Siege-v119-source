@@ -1,5 +1,5 @@
 import * as T from './three.module.js';
-import {applyHitReaction} from './zombies.mjs?v=134';
+import {applyHitReaction,springTo} from './zombies.mjs?v=136';
 import {makeRedEyeMaterial,makeEyeGeometry} from './enemy-faces.mjs?v=133';
 import {ENEMY_SURFACE,markEnemySurface} from './enemy-surfaces.mjs?v=134';
 import {paint,tube,sweep,shard,uvWindow,pooledLump} from './enemy-sculpt.mjs?v=133';
@@ -129,15 +129,21 @@ export function createZombieDogRig({rng=Math.random,rare=false}={}){
   return {group,root,spine,torso,head,jaw,tail,tailTip,legs,arms,pieces,resources,style:rare?'ashfang hound':'zombie dog',dog:true,rareDog:rare,brute:false,phase:rng()*Math.PI*2,stride:.75+rng()*.12,attackTime:-1,flinch:0,flinchDirection:0,legHit:0};
 }
 
-export function animateZombieDog(e,dt,distance,moved){
+export function animateZombieDog(e,dt,distance,moved,look=null){
   const moving=clamp(moved/Math.max(dt*e.speed,.0001),0,1);e.motion=T.MathUtils.lerp(e.motion||0,moving,1-Math.exp(-dt*12));e.phase+=moved*7.2/e.stride;e.idle=(e.idle||0)+dt;
   const p=e.phase,w=e.motion;
   e.root.position.set(0,.56+Math.cos(p*2)*(e.rareDog?.042:.024)*w-(e.legHit>0?.045:0),-.28);
-  e.root.rotation.set(Math.sin(p)*(e.rareDog?.045:.025)*w,0,Math.sin(p)*.022*w);
-  e.spine.rotation.set(Math.sin(p*2)*.025*w,Math.sin(p)*.035*w,0);
-  e.head.rotation.set(-.055+Math.sin(e.idle*1.3)*.025,Math.sin(p*.5)*.035,Math.sin(e.idle*.8)*.025);
-  e.tail.rotation.y=Math.sin(p*.5)*.1*w;e.tailTip.rotation.y=Math.sin(p*.5-.4)*.11*w;
-  e.jaw.rotation.x=(e.rareDog?.17:.14)+Math.sin(e.idle*2.1)*.020;
+  // v136: lean into turns, a flexing spine, a head that tracks the player with
+  // a lagging neck, a tail that trails on springs, and ragged panting.
+  const turn=clamp(e.turnRate||0,-5,5);
+  e.root.rotation.set(Math.sin(p)*(e.rareDog?.045:.025)*w,0,Math.sin(p)*.022*w-turn*.05);
+  e.spine.rotation.set(Math.sin(p*2)*.03*w+springTo(e,'dogFlex',Math.cos(p*2)*.03*w,dt,10,.4),Math.sin(p)*.035*w+turn*.05,0);
+  let yawTo=0,pitchTo=0;
+  if(look&&e.group){const gp=e.group.position,dx=look.x-gp.x,dz=look.z-gp.z,rel=Math.atan2(dx,dz)-e.group.rotation.y;yawTo=clamp(Math.atan2(Math.sin(rel),Math.cos(rel)),-.7,.7);pitchTo=clamp(-Math.atan2(look.y-(gp.y+.7),Math.hypot(dx,dz)),-.5,.25);}
+  e.head.rotation.set(springTo(e,'dogPitch',-.055+pitchTo*.55+Math.sin(e.idle*1.3)*.025-Math.sin(p*2)*.03*w,dt,12,.5),springTo(e,'dogYaw',yawTo*.7+Math.sin(p*.5)*.035,dt,8,.55),springTo(e,'dogRoll',Math.sin(e.idle*.8)*.025-turn*.04,dt,6,.4));
+  e.tail.rotation.y=springTo(e,'tail',Math.sin(p*.5)*.12*w-turn*.12,dt,6,.3);e.tailTip.rotation.y=springTo(e,'tailTip',e.tail.rotation.y*1.3,dt,5,.25);
+  e.tail.rotation.x=-.34+springTo(e,'tailLift',-Math.cos(p*2)*.06*w,dt,7,.3);
+  e.jaw.rotation.x=(e.rareDog?.17:.14)+Math.max(0,Math.sin(e.idle*(7+w*5)))*(.05+w*.04);
   let contact=false,lunge=0;
   if(e.staggerLeft>0)e.attackTime=-1;
   if(!(e.staggerLeft>0)&&e.attackTime<0&&distance<1.5&&e.attack<=0){e.attackTime=0;e.attack=1.05;}

@@ -27,6 +27,19 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Organic enemy motion (version 136)
+
+- **Planted feet:** walkers and ferals step instead of skating. During each stance the hip angle is solved so the planted ankle travels back at exactly ground speed, against the pelvis's own pitch. The pelvis height comes from the planted leg. Planted-foot slide dropped from about 0.97 to 0.20 metres per metre walked.
+- **A real limp:** the dragged leg has a shorter stance and the good leg a longer one, with one foot always down. The hips dip and roll over the bad leg, and the dragged foot scuffs toe-down.
+- **Weight:** the hips sway over the planted foot and drop on the swing side, and the chest counter-twists against the pelvis. Each heel strike lurches the body and nods the chest. Bodies lean into turns.
+- **Follow-through:** arms, forearms, wrists, head and shoulders ride on damped springs. Dangling arms swing heavy and loose, and reaching arms tremble.
+- **Gaze:** heads track the player with a lagging neck, within limits, and roll with the stride. Irregular twitches jerk the head or a shoulder.
+- **Idle:** idle enemies breathe and sway.
+- **Turning:** bodies turn at a limited, eased rate (2.4–6 rad/s by type) instead of snapping to every steering wobble. Turning on the spot shuffles the feet.
+- **Attacks:** a two-handed lunge. The body rears back, then lunges, and the jaw snaps. Hit timing is unchanged.
+- **Hounds:** head tracking, a flexing spine, spring-trailed tails, leaning into turns and ragged panting.
+- **Unchanged:** joints, hit regions, ragdolls, crawling and attack timing.
+
 ## Blackout event (version 135)
 
 - **Blackout** joins the Shroud, the Surge and Grave Awakening in the random world-event pool. Events can still start from wave 3, with a 40% chance per eligible wave, never two waves in a row, and each type is equally likely.
