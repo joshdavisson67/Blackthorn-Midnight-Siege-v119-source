@@ -5,8 +5,8 @@ import {createCurseUI,curseSummary} from './curse-ui.mjs?v=130';
 import {BOSS,WARDEN,bossPhase,dueSummons,lanceVolley,cooldownScale,segmentDistance,wakeStep,dressKnight,dressWarden,createBossEffects} from './blackthorn-boss.mjs?v=130';
 import {ENRAGE,enrageNearby} from './enrage.mjs?v=130';
 import {createCrowd,enemyBody,PLAYER_RADIUS,SPREAD} from './crowd.mjs?v=123';
-import {createLeaderboard} from './leaderboard.mjs?v=135';
-import {createChangelog} from './changelog.mjs?v=135';
+import {createLeaderboard} from './leaderboard.mjs?v=136';
+import {createChangelog} from './changelog.mjs?v=136';
 import {configureMinimap} from './minimap-settings.mjs?v=79';
 import {COMBAT,createWeaponRecoil,staggerLimits,advanceStagger,registerStagger,createCombatHud} from './combat-feedback.mjs?v=84';
 import {ARMOR,armorRank} from './armor.mjs?v=94';
@@ -28,17 +28,17 @@ import {createWeaponModel,updatePistolSlide} from './weapon-models.mjs?v=129';
 import {weaponSurfaces} from './weapon-surfaces.mjs?v=87';
 import {GRENADE_THROW,createGrenadeAssets,createGrenadeThrow} from './grenade-throw.mjs?v=44';
 import {POWERUPS,choosePowerup,powerupIcon,createPowerupAssets} from './powerups.mjs?v=129';
-import {createEnemyAssets} from './enemy-assets.mjs?v=134';
+import {createEnemyAssets} from './enemy-assets.mjs?v=136';
 import {createCombatLights} from './combat-lights.mjs?v=129';
 import {createLighting,prepareLightingMaterials,patchLightingMaterial} from './lighting.mjs?v=120';
 import {createEnvironmentLights} from './environment-lights.mjs?v=135';
 import {createEffectPool} from './effect-pool.mjs?v=47';
-import {animateZombieDog,DOG_SPEED_MULTIPLIER,RARE_DOG_SPEED_MULTIPLIER} from './zombie-dog.mjs?v=134';
+import {animateZombieDog,DOG_SPEED_MULTIPLIER,RARE_DOG_SPEED_MULTIPLIER} from './zombie-dog.mjs?v=136';
 import {UPPER_Y,UPPER_CEILING,UPPER_SPAWNS,hasUpperFloor,STAIR,EXTERIOR_STAIRS,supportBelow,stairHeight,stairAt,moveActor,updateActorHeight,buildVerticalNavigation,upperLocation,OLIVIA_ATTIC,setAtticOpen,isAtticOpen,inAttic} from './vertical.mjs?v=131';
 import {EASTER_EGG,buildOliviaAttic,boneChipModel} from './olivia.mjs?v=131';
 import {buildSecondFloor,drawUpperMap} from './second-floor.mjs?v=131';
 import {BELLA,BELLA_PAW,createBellaCompanion} from './bella.mjs?v=131';
-import {tagZombie,reactToHit,animateZombie,beginZombieDeath,updateZombieDeath,noteLegDamage,CRAWL} from './zombies.mjs?v=134';
+import {tagZombie,reactToHit,animateZombie,beginZombieDeath,updateZombieDeath,noteLegDamage,CRAWL} from './zombies.mjs?v=136';
 import {addEstateDetail} from './estate-detail.mjs?v=131';
 import {buildFacade,mansionRoofGeometry,PORTICO} from './facade.mjs?v=131';
 import {createReticleHud} from './reticles.mjs?v=116';
@@ -1049,8 +1049,10 @@ if(len>.1&&(dist>1.03||!sameFloor)&&!casting){
   if(Math.hypot(p.x-oldX,p.z-oldZ)>.001)heading=Math.atan2(p.x-oldX,p.z-oldZ);
 }
 
-const turn=Math.atan2(Math.sin(heading-e.group.rotation.y),Math.cos(heading-e.group.rotation.y));e.group.rotation.y+=turn*(1-Math.exp(-dt*8));
-e.floorY=p.y;e.group.position.set(p.x,Math.abs(p.y)>.1?p.y-.02:enemyFloorHeight(p.x,p.z)-.02,p.z);e.attack-=dt*worldEvents.attackRate(e);const contact=(e.dog?animateZombieDog:animateZombie)(e,dt,sameFloor?dist:99,Math.hypot(p.x-oldX,p.z-oldZ));if(casting)poseBlackthorn(e);
+// Turn at a limited, eased rate (v136): bodies swing round with weight rather
+// than snapping to every steering wobble; the head leads, tracking the player.
+const turn=Math.atan2(Math.sin(heading-e.group.rotation.y),Math.cos(heading-e.group.rotation.y)),maxTurn=(e.dog?6:e.feral?5:e.brute?2.4:3.2)*dt,yawStep=clamp(turn*(1-Math.exp(-dt*6)),-maxTurn,maxTurn);e.group.rotation.y+=yawStep;e.turnRate=T.MathUtils.lerp(e.turnRate||0,yawStep/Math.max(dt,1e-4),1-Math.exp(-dt*10));
+e.floorY=p.y;e.group.position.set(p.x,Math.abs(p.y)>.1?p.y-.02:enemyFloorHeight(p.x,p.z)-.02,p.z);e.attack-=dt*worldEvents.attackRate(e);const contact=(e.dog?animateZombieDog:animateZombie)(e,dt,sameFloor?dist:99,Math.hypot(p.x-oldX,p.z-oldZ),camera.position);if(casting)poseBlackthorn(e);
 if(contact&&!casting&&!(e.staggerLeft>0)&&dist<1.7&&Math.abs(player.y-p.y)<.7&&hasClearPath(p.x,p.z,player.x,player.z,p.y,player.y)){
 hurtPlayer(waveConfig(wave).damage*(e.boss?BOSS.meleeMultiplier:e.warden?1.4*WARDEN.damageMultiplier:e.feral?FERAL.damageMultiplier:e.dog?.85:e.brute?1.4:1)*(e.enraged&&!e.elite?ENRAGE.damageMultiplier:1)*(e.warCry>0?BOSS.cry.damage:1),p);noise(.15,.08,600);tone(70,.14,.06,'sine');if(health<=0)gameOver();}
 e.groan-=dt;if(e.groan<=0){if(dist<12)tone(e.feral?210:e.rareDog?155:e.dog?105:e.brute?45:rand(60,100),e.dog?.22:.6,.035*(1-dist/14),'sawtooth',35);e.groan=rand(6,15);}}}

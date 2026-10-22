@@ -1,7 +1,7 @@
 import * as T from './three.module.js';
 import {BRUTE} from './brute.mjs?v=30';
-import {createZombieRig,tagZombie,rollGait} from './zombies.mjs?v=134';
-import {createZombieDogRig} from './zombie-dog.mjs?v=134';
+import {createZombieRig,tagZombie,rollGait} from './zombies.mjs?v=136';
+import {createZombieDogRig} from './zombie-dog.mjs?v=136';
 import {ENEMY_SURFACE,enemySurfaces,atlasUV,enemySurfaceShader,addDetailCoordinates} from './enemy-surfaces.mjs?v=134';
 
 export function bakeEnemyPalette(rig){
