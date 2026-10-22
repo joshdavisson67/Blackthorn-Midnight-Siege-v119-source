@@ -5,8 +5,8 @@ import {createCurseUI,curseSummary} from './curse-ui.mjs?v=130';
 import {BOSS,WARDEN,bossPhase,dueSummons,lanceVolley,cooldownScale,segmentDistance,wakeStep,dressKnight,dressWarden,createBossEffects} from './blackthorn-boss.mjs?v=130';
 import {ENRAGE,enrageNearby} from './enrage.mjs?v=130';
 import {createCrowd,enemyBody,PLAYER_RADIUS,SPREAD} from './crowd.mjs?v=123';
-import {createLeaderboard} from './leaderboard.mjs?v=134';
-import {createChangelog} from './changelog.mjs?v=134';
+import {createLeaderboard} from './leaderboard.mjs?v=135';
+import {createChangelog} from './changelog.mjs?v=135';
 import {configureMinimap} from './minimap-settings.mjs?v=79';
 import {COMBAT,createWeaponRecoil,staggerLimits,advanceStagger,registerStagger,createCombatHud} from './combat-feedback.mjs?v=84';
 import {ARMOR,armorRank} from './armor.mjs?v=94';
@@ -31,7 +31,7 @@ import {POWERUPS,choosePowerup,powerupIcon,createPowerupAssets} from './powerups
 import {createEnemyAssets} from './enemy-assets.mjs?v=134';
 import {createCombatLights} from './combat-lights.mjs?v=129';
 import {createLighting,prepareLightingMaterials,patchLightingMaterial} from './lighting.mjs?v=120';
-import {createEnvironmentLights} from './environment-lights.mjs?v=131';
+import {createEnvironmentLights} from './environment-lights.mjs?v=135';
 import {createEffectPool} from './effect-pool.mjs?v=47';
 import {animateZombieDog,DOG_SPEED_MULTIPLIER,RARE_DOG_SPEED_MULTIPLIER} from './zombie-dog.mjs?v=134';
 import {UPPER_Y,UPPER_CEILING,UPPER_SPAWNS,hasUpperFloor,STAIR,EXTERIOR_STAIRS,supportBelow,stairHeight,stairAt,moveActor,updateActorHeight,buildVerticalNavigation,upperLocation,OLIVIA_ATTIC,setAtticOpen,isAtticOpen,inAttic} from './vertical.mjs?v=131';
@@ -51,8 +51,9 @@ import {ESTATE_SPAWNS,roomAt,estateLocation} from './estate-layout.mjs?v=28';
 import {buildMansionExpansion,drawEstateMap} from './mansion-expansion.mjs?v=131';
 import {buildRotundaBell} from './rotunda-bell.mjs?v=130';
 import {UPPER_SLAB_BOTTOM} from './upper-shell.mjs?v=131';
-import {EVENT_RULES,WORLD_EVENTS,createWorldEvents} from './world-events.mjs?v=97';
-import {createWorldEventVisuals} from './world-event-visuals.mjs?v=97';
+import {EVENT_RULES,WORLD_EVENTS,createWorldEvents} from './world-events.mjs?v=135';
+import {createBlackout} from './blackout.mjs?v=135';
+import {createWorldEventVisuals} from './world-event-visuals.mjs?v=135';
 const domCache=new Map();const $=id=>{if(!domCache.has(id))domCache.set(id,document.getElementById(id));return domCache.get(id);}, hudMarkup=new Map(),hudOpacity=new Map(),setMarkup=(id,markup)=>{if(hudMarkup.get(id)!==markup){hudMarkup.set(id,markup);$(id).innerHTML=markup;}},setOpacity=(id,value)=>{if(hudOpacity.get(id)!==value){hudOpacity.set(id,value);$(id).style.opacity=value;}}, rand=(a,b)=>a+rng()*(b-a), clamp=T.MathUtils.clamp;
 const reticleHud=createReticleHud($('crosshair'));
 const canvas=$('game');let renderer;
@@ -102,7 +103,7 @@ function sphere(x,y,z,sx,sy,sz,m=M.skin,parent=world){return mesh(sphereGeo,m,[x
 const signage=createSignage({anisotropy:Math.min(16,renderer.capabilities?.getMaxAnisotropy?.()??16)});
 const label=signage.label;
 function painting(x,y,z,w,h,rotation=0){const c=document.createElement('canvas');c.width=256;c.height=384;const p=c.getContext('2d');const g=p.createRadialGradient(120,120,5,128,180,240);g.addColorStop(0,'#665543');g.addColorStop(1,'#12171a');p.fillStyle=g;p.fillRect(0,0,256,384);p.fillStyle='#171d1d';p.beginPath();p.ellipse(128,345,100,155,0,0,7);p.fill();p.fillStyle='#6f6a52';p.beginPath();p.ellipse(128,130,43,65,-.08,0,7);p.fill();p.fillStyle='#28291f';p.beginPath();p.ellipse(128,94,47,30,0,Math.PI,Math.PI*2);p.fill();p.fillRect(100,122,22,6);p.fillRect(139,122,20,6);p.fillStyle='#b8b493';p.fillRect(106,123,4,3);p.fillRect(144,123,4,3);p.strokeStyle='#302f23';p.beginPath();p.moveTo(130,137);p.lineTo(124,162);p.lineTo(137,163);p.stroke();p.fillRect(115,180,27,3);for(let i=0;i<2000;i++){p.fillStyle='rgba(0,0,0,.04)';p.fillRect(rng()*256,rng()*384,rand(1,6),rand(1,10));}const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const grp=new T.Group();grp.position.set(x,y,z);grp.rotation.y=rotation;world.add(grp);box(0,0,0,w+.18,h+.18,.10,M.wood,grp);for(const side of [-1,1]){box(side*(w/2+.045),0,.056,.09,h+.18,.05,M.gold,grp);box(0,side*(h/2+.045),.056,w,.09,.05,M.gold,grp);}const art=new T.PlaneGeometry(w,h),uv=art.attributes.uv,aspect=w/h,sourceAspect=c.width/c.height;if(aspect>sourceAspect){const span=sourceAspect/aspect,center=Math.min(1-span/2,.58);for(let i=0;i<uv.count;i++)uv.setY(i,center+(uv.getY(i)-.5)*span);}else{const span=aspect/sourceAspect;for(let i=0;i<uv.count;i++)uv.setX(i,.5+(uv.getX(i)-.5)*span);}const artwork=mesh(art,new T.MeshStandardMaterial({map:tex,roughness:1}),[0,0,.083],null,grp);grp.name='Blackthorn portrait';portraits.push({group:grp,artwork,w,h});return grp;}
-scene.add(new T.HemisphereLight(0x8ba8bf,0x222019,1.1));const moonlight=new T.DirectionalLight(0x93b9de,2.8);moonlight.position.set(-64,112,12);moonlight.target.position.set(0,0,-36);scene.add(moonlight.target);moonlight.castShadow=true;moonlight.shadow.mapSize.set(2048,2048);Object.assign(moonlight.shadow.camera,{left:-85,right:85,top:85,bottom:-85,near:1,far:240});moonlight.shadow.bias=-.00003;moonlight.shadow.normalBias=.008;scene.add(moonlight);
+const hemisphere=new T.HemisphereLight(0x8ba8bf,0x222019,1.1);scene.add(hemisphere);const moonlight=new T.DirectionalLight(0x93b9de,2.8);moonlight.position.set(-64,112,12);moonlight.target.position.set(0,0,-36);scene.add(moonlight.target);moonlight.castShadow=true;moonlight.shadow.mapSize.set(2048,2048);Object.assign(moonlight.shadow.camera,{left:-85,right:85,top:85,bottom:-85,near:1,far:240});moonlight.shadow.bias=-.00003;moonlight.shadow.normalBias=.008;scene.add(moonlight);
 const moon=sphere(-35,44,-55,3,3,3,new T.MeshBasicMaterial({color:0xc6d9db}));moon.castShadow=false;
 function point(x,y,z,color,intensity=2,dist=9){const l=new T.PointLight(color,intensity,dist,1.5);l.position.set(x,y,z);scene.add(l);lamps.push({light:l,base:intensity,phase:rand(0,7)});return l;}
 function candle(x,y,z,parent=world){cylinder(x,y+.14,z,.045,.28,M.white,parent);const f=sphere(x,y+.31,z,.028,.07,.028,new T.MeshBasicMaterial({color:0xffc77c}),parent);return f;}
@@ -206,7 +207,7 @@ const flashlight=new T.SpotLight(0xe2eddd,FLASHLIGHT_INTENSITY,28,.5,.35,1.1);fl
 // Clear each frame and resolve with spatial antialiasing; preserve the 15% brightness boost.
 const film=makeFilmPass(innerWidth,innerHeight);const rt=film.target,postMat=film.material;const postScene=new T.Scene();const postCamera=new T.OrthographicCamera(-1,1,1,-1,0,1);postScene.add(new T.Mesh(new T.PlaneGeometry(2,2),postMat));
 // The night sky uses layered clouds instead of a flat backdrop.
-const skyMat=new T.ShaderMaterial({side:T.BackSide,depthWrite:false,uniforms:{time:{value:0}},vertexShader:'varying vec3 localP;void main(){localP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:`varying vec3 localP;uniform float time;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x),f.y);}void main(){vec3 d=normalize(localP);vec2 uv=d.xz/(abs(d.y)+.4)*3.;uv+=vec2(time*.007,time*.002);float cloud=0.;float a=.5;for(int i=0;i<5;i++){cloud+=noise(uv)*a;uv*=2.03;a*=.5;}vec3 base=mix(vec3(.027,.042,.061),vec3(.008,.019,.039),max(0.,d.y));base+=vec3(.024,.032,.035)*smoothstep(.32,.8,cloud);float halo=pow(max(0.,dot(d,normalize(vec3(-35.,44.,-55.)))),18.);base+=vec3(.04,.065,.08)*halo;gl_FragColor=vec4(base,1.);
+const skyMat=new T.ShaderMaterial({side:T.BackSide,depthWrite:false,uniforms:{time:{value:0},skyLight:{value:1}},vertexShader:'varying vec3 localP;void main(){localP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:`varying vec3 localP;uniform float time;uniform float skyLight;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x),f.y);}void main(){vec3 d=normalize(localP);vec2 uv=d.xz/(abs(d.y)+.4)*3.;uv+=vec2(time*.007,time*.002);float cloud=0.;float a=.5;for(int i=0;i<5;i++){cloud+=noise(uv)*a;uv*=2.03;a*=.5;}vec3 base=mix(vec3(.027,.042,.061),vec3(.008,.019,.039),max(0.,d.y));base+=vec3(.024,.032,.035)*smoothstep(.32,.8,cloud);float halo=pow(max(0.,dot(d,normalize(vec3(-35.,44.,-55.)))),18.);base+=vec3(.04,.065,.08)*halo;gl_FragColor=vec4(base*skyLight,1.);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`});const sky=new T.Mesh(new T.SphereGeometry(220,32,16),skyMat);sky.renderOrder=-5;scene.add(sky);
@@ -258,6 +259,8 @@ const lighting=createLighting({renderer,scene,world,camera,moonlight,flashlight}
 const cellarFixtures=[-6,2,8].flatMap(z=>[-1,1].map(side=>({x:CELLAR.x+side*(CELLAR.w/2-.7),y:-1.6,z:CELLAR.z+z,color:0x80cbd2,intensity:6,distance:11,cellar:true})));
 const tombFixtures=[-1,1].map(side=>({x:MAUSOLEUM.x+side*3.2,y:1.8,z:MAUSOLEUM.z-1,color:0xffc777,intensity:5,distance:8}));
 const environmentLights=createEnvironmentLights(scene,[...expansion.fixtures,...cellarFixtures,...tombFixtures,...shed.fixtures],secondFloor.fixtures,lighting);
+// Blackout event: every estate light fades; the flashlight, enemy eyes, pickups and event essence never do.
+const blackout=createBlackout({scene,world,hemisphere,moonlight,viewLights:[viewFill,viewKey],environmentLights,sky:skyMat.uniforms,skip:o=>{for(let p=o;p;p=p.parent)if(p===eventVisuals.root||p.userData.enemy||p.userData.companion||p.userData.lightingTransient||p.userData.powerup)return true;return false;}});
 const frozenTransforms=freezeStaticTransforms(scene,world);
 for(const m of solidMeshes){m.geometry.computeBoundingBox();m.geometry.computeBoundingSphere();}
 const enemyAssets=createEnemyAssets(batchArticulated),combatLights=createCombatLights(scene,lighting);
@@ -287,11 +290,12 @@ const worldEvents=createWorldEvents({
     if(id==='awakening')eventVisuals.mark(graves);
     if(id==='shroud'){tone(320,.9,.055,'sine',95);tone(155,1.4,.035,'triangle',45);}
     else if(id==='surge')tone(65,1.2,.065,'sawtooth',220);
+    else if(id==='blackout'){tone(120,1.2,.035,'square',117);noise(.35,.05,1800);}
     else {noise(.7,.07,240);tone(55,1,.045,'triangle',30);}
     updateHud();
   },
-  onStart(id){const def=WORLD_EVENTS[id];announce(def.name,def.description);if(id==='surge')tone(220,.8,.065,'triangle',55);updateHud();},
-  onEnd(){eventVisuals.clearMarkers();scene.fog.density=baseFogDensity;setOpacity('eventPulse',0);$('eventStatus').innerHTML='';},
+  onStart(id){const def=WORLD_EVENTS[id];announce(def.name,def.description);if(id==='surge')tone(220,.8,.065,'triangle',55);if(id==='blackout'){tone(170,1.4,.08,'sawtooth',24);noise(.18,.07,900);}updateHud();},
+  onEnd(id,reason){if(id==='blackout'&&reason==='expired')tone(32,1.1,.05,'sawtooth',150);eventVisuals.clearMarkers();scene.fog.density=baseFogDensity;setOpacity('eventPulse',0);$('eventStatus').innerHTML='';},
   spawn:spawnGraveEnemy,
 });
 function spawnGraveEnemy({grave,slot}){
@@ -1075,7 +1079,7 @@ else if(mode==='menu'){camera.position.set(11.8,2.1,24);camera.lookAt(-1,3.3,0);
 updateReloadHud();combatHud.update(dt,player,lookYaw+weaponRecoil.yaw);recoil=Math.max(0,recoil-dt*.4);flashTime=Math.max(0,flashTime-dt);flash.visible=flashTime>0;muzzleLight.position.copy(gunGroups[weapon].userData.muzzle);muzzleLight.intensity=flashTime>0?15:0;hitTime=Math.max(0,hitTime-dt);setOpacity('hit',hitTime>0?1:0);damageFlash=Math.max(0,damageFlash-dt*.8);setOpacity('damage',Math.max(damageFlash,mode==='playing'&&health<30?.16:0));nukeFlashTime=Math.max(0,nukeFlashTime-dt*1.5);setOpacity('nukeFlash',nukeFlashTime);toastTime=Math.max(0,toastTime-dt);setOpacity('toast',toastTime>0?1:0);bannerTime=Math.max(0,bannerTime-dt);setOpacity('banner',bannerTime>0?1:0);
 for(const l of lamps)l.light.intensity=l.base*(.95+Math.sin(elapsed*4+l.phase)*.04+Math.sin(elapsed*7.1+l.phase)*.015);fire.scale.y=.55+Math.sin(elapsed*8)*.08;stationBuilder.update(elapsed);for(const m of mist){m.position.x+=dt*.025;if(m.position.x>43)m.position.x=-43;}
 for(let i=0;i<rainPos.length;i+=3){rainPos[i+1]-=dt*9;if(rainPos[i+1]<0)rainPos[i+1]=18;if(rainPos[i]<player.x-22)rainPos[i]+=44;if(rainPos[i]>player.x+22)rainPos[i]-=44;if(rainPos[i+2]<player.z-22)rainPos[i+2]+=44;if(rainPos[i+2]>player.z+22)rainPos[i+2]-=44;}rainGeo.attributes.position.needsUpdate=true;
-lighting.setBlockerState((cellar.progress===1?'open':'closed')+':'+(graveyard.progress===1?'open':'closed')+(shed.progress===1?':shed-open':''));bloodPool.sync();markPool.sync();combatLights.update(effects,pickups,player);estateDetail.update(elapsed,dt);environmentLights.update(camera.position,elapsed,player.y);sky.position.copy(camera.position);skyMat.uniforms.time.value=elapsed;lighting.prepare(elapsed);renderCleanFrame(renderer,scene,camera,viewCamera,rt,postScene,postCamera,gunRoot.visible||grenadeThrow.root.visible,world,weaponViewFov);}
+lighting.setBlockerState((cellar.progress===1?'open':'closed')+':'+(graveyard.progress===1?'open':'closed')+(shed.progress===1?':shed-open':''));bloodPool.sync();markPool.sync();combatLights.update(effects,pickups,player);estateDetail.update(elapsed,dt);blackout.apply(worldEvents.darkness());environmentLights.update(camera.position,elapsed,player.y);sky.position.copy(camera.position);skyMat.uniforms.time.value=elapsed;lighting.prepare(elapsed);renderCleanFrame(renderer,scene,camera,viewCamera,rt,postScene,postCamera,gunRoot.visible||grenadeThrow.root.visible,world,weaponViewFov);}
 function resize(){const pr=renderer.getPixelRatio();renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();const scale=renderScale.scale;rt.setSize(Math.max(1,Math.round(innerWidth*pr*scale)),Math.max(1,Math.round(innerHeight*pr*scale)));}window.addEventListener('resize',resize);resize();
 async function prepareRendering(){
   if(!renderer.compileAsync)return;

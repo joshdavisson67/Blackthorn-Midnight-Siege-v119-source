@@ -288,7 +288,7 @@ body:has(.modal:not(.hidden)) .vitalEmblem,body:has(.modal:not(.hidden)) .shield
 /* World events sit below the wave counter, clear of sights and navigation. */
 #eventStatus:empty{display:none}
 .worldEventBadge{display:flex;align-items:center;gap:10px;margin-top:16px;width:min(300px,calc(100vw - 245px));padding:10px 12px;background:#07151ae8;border:1px solid currentColor;border-left-width:3px;box-shadow:0 4px 16px #0005;color:#a7d9db}
-.worldEventBadge.surge{color:#cfadff}.worldEventBadge.awakening{color:#b5ecae}
+.worldEventBadge.surge{color:#cfadff}.worldEventBadge.awakening{color:#b5ecae}.worldEventBadge.blackout{color:#e0c27a;background:#040506f2}
 .round .worldEventBadge .eventSymbol{display:flex;align-items:center;justify-content:center;flex:none;width:30px;margin:0;font-size:28px;letter-spacing:0;color:inherit}
 .worldEventBadge strong{display:block;font-size:12px;letter-spacing:1.5px}
 .round .worldEventBadge b{display:block;margin:4px 0;font:600 16px Barlow,Arial,sans-serif;letter-spacing:.5px}
