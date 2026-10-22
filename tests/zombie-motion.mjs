@@ -54,6 +54,21 @@ export function verifyZombieMotion(qa,frames){
     assert(hunched>upright+.18,'Hunch folds the spine forward');
   }
 
+  // ---- Smooth gait: no snapping as weight changes legs or a foot lifts --------
+  {
+    const reads={pelvisSway:r=>r.root.position.x,pelvisHeight:r=>r.root.position.y,pelvisRoll:r=>r.root.rotation.z,spineTilt:r=>r.spine.rotation.z,
+      hip:r=>r.legs[0].pivot.rotation.x,knee:r=>r.legs[0].calf.rotation.x,ankle:r=>r.legs[0].foot.rotation.x,dragAnkle:r=>r.legs[1].foot.rotation.x};
+    const limits={pelvisSway:.004,pelvisHeight:.008,pelvisRoll:.008,spineTilt:.012,hip:.05,knee:.1,ankle:.1,dragAnkle:.1};
+    for(const limp of [.12,.25,.4]){
+      const e=walker(60+Math.round(limp*100),{dragLeg:1,scuff:.9});e.limp=limp;const hist={};
+      for(let i=0;i<360;i++){animateZombie(e,1/60,6,e.speed/60);if(i<90)continue;
+        for(const [k,f] of Object.entries(reads)){const h=hist[k]??=[];h.push(f(e));if(h.length>3)h.shift();
+          if(h.length===3)assert(Math.abs(h[2]-2*h[1]+h[0])<limits[k],`${k} snaps mid-stride (limp ${limp})`);}
+      }
+    }
+  }
+  console.log('PASS: smooth gait: weight shift, pelvis, spine and every leg joint stay continuous through lift-off, touch-down and limping strides.');
+
   // ---- Attack styles: varied body language, identical hit timing --------------
   {
     const crowd=Array.from({length:60},(_,i)=>rollGait(seeded(500+i)));

@@ -542,19 +542,31 @@ function solveHip(back,k){
 }
 const reach=(th,k)=>THIGH*Math.cos(th)+SHIN*Math.cos(th+k);
 // One leg at gait phase u (0..1). During stance the ankle is solved to travel
-// back at exactly ground speed, so the planted foot does not skate; swing
-// flicks it forward. `stance` is this leg's stance fraction (a limp shortens
-// it on the dragged leg) and `span` the ground it covers, in rig units.
+// back at exactly ground speed, so the planted foot does not skate. `stance` is
+// this leg's stance fraction (a limp shortens it on the dragged leg) and `span`
+// the ground it covers, in rig units.
+// v138: the swing is a Hermite curve that leaves the stance pose with the same
+// position and speed and lands exactly on the next stance pose, and the knee
+// and ankle blend between those poses, so nothing snaps at lift-off or
+// touch-down. `support` is a weight that rises and falls smoothly through the
+// stance and is zero in the air.
+const smooth01=x=>{x=Math.min(1,Math.max(0,x));return x*x*(3-2*x);};
+function stancePose(t,span,drag,bob){
+  const k=(.09*Math.sin(Math.PI*Math.min(1,t*2.2))*bob+.04)*(drag?.6:1),hip=solveHip(-span/2+span*t,k),lift=smooth01((t-.72)/.28);
+  return {hip,knee:k+lift*.25,foot:-(hip+k)+lift*.32,height:reach(hip,k)};
+}
 function legPose(u,stance,span,knee,drag,scuff,bob,pitch=0){
   if(u<stance){
-    const t=u/stance,k=(.09*Math.sin(Math.PI*Math.min(1,t*2.2))*bob+.04)*(drag?.6:1);
-    const hip=solveHip(-span/2+span*t,k),lift=Math.max(0,t-.8)/.2;
+    const t=u/stance,s=stancePose(t,span,drag,bob);
     // Angles are solved against the vertical; the pitched pelvis is removed.
-    return {hip:hip-pitch,knee:k+lift*.25,foot:-(hip+k)+lift*.32,height:reach(hip,k),planted:true};
+    return {hip:s.hip-pitch,knee:s.knee,foot:s.foot,height:s.height,support:Math.pow(Math.sin(Math.PI*t),.6),planted:true};
   }
-  const t=(u-stance)/(1-stance),e=t*t*(3-2*t),from=solveHip(span/2,.29),to=solveHip(-span/2,.04),hip=from+(to-from)*e;
-  const k=.04+(knee*Math.pow(Math.sin(Math.PI*Math.min(1,t*1.12)),1.3)+.25*(1-Math.min(1,t*4)))*(drag?1-scuff*.6:1);
-  return {hip:hip-pitch,knee:k,foot:drag?scuff*.35:-.18*Math.sin(Math.PI*t)-(hip+k)*.3,height:reach(hip,k),planted:false};
+  const s=(u-stance)/(1-stance),A=stancePose(1,span,drag,bob),B=stancePose(0,span,drag,bob);
+  const ratio=(1-stance)/stance,mA=(A.hip-stancePose(.97,span,drag,bob).hip)/.03*ratio,mB=(stancePose(.03,span,drag,bob).hip-B.hip)/.03*ratio;
+  const s2=s*s,s3=s2*s,hip=(2*s3-3*s2+1)*A.hip+(s3-2*s2+s)*mA+(-2*s3+3*s2)*B.hip+(s3-s2)*mB,e=smooth01(s),bump=Math.pow(Math.sin(Math.PI*s),2);
+  const k=A.knee+(B.knee-A.knee)*e+knee*bump*(drag?1-scuff*.6:1);
+  const foot=A.foot+(B.foot-A.foot)*e+(drag?scuff*.3:-.16)*bump;
+  return {hip:hip-pitch,knee:k,foot,height:reach(hip,k),support:0,planted:false};
 }
 export function animateZombie(e,dt,distance,moved,look=null){
   // Pivoting on the spot shuffles the feet round instead of sliding.
@@ -574,18 +586,22 @@ export function animateZombie(e,dt,distance,moved,look=null){
     const pose=legPose(u,stance,cycle*stance*w*stretch,.62+run*.25+(e.feral?.2:0),drag,g.scuff,g.bob,pelvisPitch);
     return {u,stance,drag,pose};
   });
-  // Pelvis height comes from the planted leg(s), so feet meet the floor.
-  const planted=legPoses.filter(l=>l.pose.planted),reachDown=planted.length?Math.max(...planted.map(l=>l.pose.height)):Math.max(...legPoses.map(l=>l.pose.height));
-  const stanceLeg=planted.length===1?legPoses.indexOf(planted[0]):planted.length?(legPoses[0].u/legPoses[0].stance<legPoses[1].u/legPoses[1].stance?0:1):(legPoses[0].u>legPoses[1].u?0:1),sl=legPoses[stanceLeg];
-  const drop=LEG_LENGTH-reachDown,sideOf=j=>j?1:-1;
+  // Weight shifts smoothly between the legs: each planted leg's support rises
+  // and falls through its stance, so sway, roll and the limp never flip.
+  const supports=legPoses.map(l=>l.pose.support),total=Math.max(1e-3,supports[0]+supports[1]),sideOf=j=>j?1:-1;
+  const balance=springTo(e,'balance',(supports[1]-supports[0])/total,dt,9,.85),dragLoad=springTo(e,'dragLoad',supports[g.dragLeg]/total,dt,9,.85);
+  // Pelvis height follows the weighted planted legs, so the feet meet the floor
+  // without a hop when the support changes legs.
+  const reachDown=total>2e-3?(supports[0]*legPoses[0].pose.height+supports[1]*legPoses[1].pose.height)/total:Math.max(legPoses[0].pose.height,legPoses[1].pose.height);
+  const drop=springTo(e,'drop',LEG_LENGTH-reachDown,dt,18,.9),limp=(e.limp||0)*dragLoad;
   const breathe=Math.sin(t*1.35+e.lean*9);
-  e.root.position.set(sideOf(stanceLeg)*.022*g.sway*w,.92-drop+.004*breathe*(1-w)-(e.legHit>0?.055:0),0);
+  e.root.position.set(balance*.022*g.sway*w,.92-drop+.004*breathe*(1-w)-(e.legHit>0?.055:0),0);
   const pelvisYaw=Math.sin(hip)*.075*g.sway*w;
-  springTo(e,'lurch',drop*1.6*w+(sl.drag?e.limp*.06*w:0),dt,10,.5);
-  e.root.rotation.set(pelvisPitch,pelvisYaw,-sideOf(stanceLeg)*.05*g.sway*w+(sl.drag?sideOf(stanceLeg)*e.limp*.14*w:0)-turn*.035);
+  springTo(e,'lurch',(drop*1.6+limp*.06)*w,dt,10,.5);
+  e.root.rotation.set(pelvisPitch,pelvisYaw,-balance*.05*g.sway*w+sideOf(g.dragLeg)*limp*.14*w-turn*.035);
   // Chest counter-twists against the pelvis; each heel strike nods it forward.
-  const nod=springTo(e,'nod',(drop*2.2*g.bob+(sl.drag?e.limp*.12:0))*w,dt,9,.45);
-  e.spine.rotation.set(.1+run*.07+(e.feral?.12:0)+g.hunch+slump+nod+.02*breathe*(1-w)*.6,-pelvisYaw*1.25+Math.sin(hip)*.03*w,e.lean*.3+sideOf(stanceLeg)*.045*w+Math.sin(t*.37+e.lean*5)*.03*(1-w));
+  const nod=springTo(e,'nod',(drop*2.2*g.bob+limp*.12)*w,dt,9,.45);
+  e.spine.rotation.set(.1+run*.07+(e.feral?.12:0)+g.hunch+slump+nod+.02*breathe*(1-w)*.6,-pelvisYaw*1.25+Math.sin(hip)*.03*w,e.lean*.3+balance*.045*w+Math.sin(t*.37+e.lean*5)*.03*(1-w));
   // Head: tracks the player with a lagging neck, lolls with the stride, twitches.
   let yawTo=0,pitchTo=0;
   if(look&&e.group){
@@ -595,19 +611,20 @@ export function animateZombie(e,dt,distance,moved,look=null){
   }
   e.twitchIn=(e.twitchIn??1+chance(e)*4)-dt;
   if(e.twitchIn<=0){e.twitchIn=1.2+chance(e)*(e.feral?2:5);const r=chance(e);
-    if(r<.45)kick(e,'headYaw',(chance(e)-.5)*14);else if(r<.75)kick(e,'headRoll',(chance(e)-.5)*16);else kick(e,'shrug'+(r<.88?0:1),-(4+chance(e)*6));}
+    if(r<.45)kick(e,'headYaw',(chance(e)-.5)*8);else if(r<.75)kick(e,'headRoll',(chance(e)-.5)*9);else kick(e,'shrug'+(r<.88?0:1),-(2.5+chance(e)*3.5));}
   const headBase=(e.feral?-.24:-.07)-g.hunch*.7-slump*1.1;
   e.head.rotation.set(
     springTo(e,'headPitch',headBase+pitchTo*.6-nod*.7+Math.sin(t*1.1)*.04,dt,11,.55),
     springTo(e,'headYaw',yawTo*.75+Math.sin(p*.5)*.06*w,dt,7,.6),
-    springTo(e,'headRoll',e.lean+Math.sin(t*.8)*.035-sideOf(stanceLeg)*.05*w-yawTo*.12,dt,6,.35));
+    springTo(e,'headRoll',e.lean+Math.sin(t*.8)*.035-balance*.05*w-yawTo*.12,dt,6,.45));
   e.jaw.rotation.x=(e.faceSnarl??.14)+Math.max(0,Math.sin(t*2.3+e.lean*7))*.05+Math.max(0,Math.sin(t*11.3))*.015;
   let contact=false;
   if(e.staggerLeft>0||e.crawlDrop>0)e.attackTime=-1;
   if(!(e.staggerLeft>0)&&!(e.crawlDrop>0)&&e.attackTime<0&&distance<1.65&&e.attack<=0){e.attackTime=0;e.attackHand=1-e.attackHand;e.attack=.95+(e.brute?.25:0);}
   let attack=null;
   if(e.attackTime>=0){const prev=e.attackTime;e.attackTime+=dt;const hit=e.brute?.46:.34,windup=clamp(e.attackTime/hit,0,1),strike=clamp((e.attackTime-hit)/.17,0,1);contact=prev<hit&&e.attackTime>=hit;
-    attack=attackPose(g.attack||'grabber',e.attackTime,windup,strike,1-clamp((e.attackTime-.54)/.31,0,1),e.attackHand);
+    // A brute crouched under a low doorway cannot swing overhead; it grabs instead.
+    attack=attackPose(e.crouch>.3&&(g.attack==='slammer'||g.attack==='swiper')?'grabber':g.attack||'grabber',e.attackTime,windup,strike,1-clamp((e.attackTime-.54)/.31,0,1),e.attackHand);
     e.spine.rotation.x+=attack.sx;e.spine.rotation.y+=attack.sy;e.root.rotation.x+=attack.rx;e.root.position.z+=attack.rz;
     e.head.rotation.x+=attack.hx;e.head.rotation.y+=attack.hy;e.jaw.rotation.x+=attack.jaw;
     if(e.attackTime>.85){e.attackTime=-1;attack=null;}

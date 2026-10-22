@@ -35,11 +35,14 @@ export function verifyBrutes(qa,frames){
 
   // A standing brute is taller than upstairs headers. Its crouch must provide
   // real clearance without shrinking its model or leaving upper spawns trapped.
-  qa.start();qa.holdSpawns();const posed=qa.makeZombie(0,-10.4,true,false,false,UPPER_Y);posed.speed=4;posed.attack=0;posed.crouch=1;posed.flinch=.26;
+  let posed;
+  for(const style of ['slammer','grabber']){
+  qa.start();qa.holdSpawns();posed=qa.makeZombie(0,-10.4,true,false,false,UPPER_Y);posed.speed=4;posed.attack=0;posed.crouch=1;posed.flinch=.26;posed.gait={...posed.gait,attack:style};
   for(let i=0;i<120;i++){
     animateZombie(posed,1/60,1.3,i<60?.02:0);
     const bounds=new T.Box3().setFromObject(posed.group);
-    assert(bounds.max.y-UPPER_Y<2.34,'Crouched head/arms clear an upstairs doorway during walking, flinch and attack');
+    assert(bounds.max.y-UPPER_Y<2.34,`Crouched head/arms clear an upstairs doorway during walking, flinch and attack (${style})`);
+  }
   }
   close(posed.group.scale.y,1.24*1.33,'Crouching articulates the larger body rather than shrinking it');
 

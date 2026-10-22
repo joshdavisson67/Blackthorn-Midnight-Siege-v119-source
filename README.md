@@ -27,6 +27,15 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Smooth gait (version 138)
+
+- **No more tick-tock.** The hip sway, pelvis roll, spine tilt, head roll and limp dip used to flip instantly from one side to the other each time the weight changed legs. They now follow a smooth weight-balance signal: each planted leg's support rises and falls through its stance, and a spring smooths the result.
+- **No snapping feet.** Each swing is a Hermite curve that leaves the stance pose at the same position and speed and lands exactly on the next stance pose. The knee and ankle blend between those poses.
+- **No hopping pelvis.** The pelvis height is the support-weighted reach of the planted legs, spring-smoothed.
+- **Gentler twitches.** Twitch impulses are roughly halved.
+- **Measured over 16 walkers:** the worst per-frame acceleration fell about 50× for pelvis sway and roll, 16× for spine tilt, 8× for the ankles and 6× for the hips. Feet still plant (0.16 m slide per metre walked).
+- **Fix:** a brute crouched under an upstairs doorway now grabs instead of slamming or swiping, so its fists stay under the header.
+
 ## Attack styles and arm carriages (version 137)
 
 - **Attack styles:** each enemy rolls its own, and every style lands on the same contact frame, so damage timing is unchanged.
