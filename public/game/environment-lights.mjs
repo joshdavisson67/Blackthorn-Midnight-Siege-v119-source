@@ -44,8 +44,9 @@ export function createEnvironmentLights(scene,groundFixtures,upperFixtures,light
       const source=slots[i],light=lights[i];
       if(!source){lighting.bind(light,null,0);continue;}
       light.position.copy(source.position);light.color.copy(source.color);
-      light.distance=source.distance;light.decay=source.decay;lighting.bind(light,source,intensity(source));
+      light.distance=source.distance;light.decay=source.decay;lighting.bind(light,source,intensity(source)*api.scale);
     }
   }
-  return {lights,sources,slots,update};
+  // Scaled by world events such as the Blackout (1 = lamps at full strength).
+  const api={lights,sources,slots,update,scale:1};return api;
 }

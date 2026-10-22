@@ -2,10 +2,13 @@
 export const EVENT_RULES=Object.freeze({firstWave:3,chance:.40,warning:3,graveWarning:4,graves:3,reinforcements:6,graveBonus:25,spawnInterval:.8,aliveLimit:32});
 export const WORLD_EVENTS=Object.freeze({
   shroud:{name:'THE SHROUD',duration:30,color:'#a7d9db',warning:'An eerie call carries across the cemetery…',description:'Dense fog conceals the distant dead outdoors. Every kill earns 20% more essence.',effect:'OUTDOOR VISIBILITY REDUCED · +20% KILL ESSENCE'},
-  surge:{name:'THE SURGE',duration:25,color:'#cfadff',warning:'A supernatural pulse is gathering…',description:'Standard zombies hasten. Every kill earns 20% more essence.',effect:'+20% WALKER SPEED · +20% KILL ESSENCE'},
-  awakening:{name:'GRAVE AWAKENING',duration:0,color:'#b5ecae',warning:'Three marked graves glow and tremble in the cemetery.',description:'Six dead rise from the cemetery. Every kill earns 20% more essence while they rise. Collect their bonus essence.',effect:'CEMETERY REINFORCEMENTS · +20% KILL ESSENCE · GOLD ESSENCE DROPS'},
+  surge:{name:'THE SURGE',duration:30,color:'#cfadff',warning:'A supernatural pulse is gathering…',description:'Standard zombies hasten. Every kill earns 20% more essence.',effect:'+20% WALKER SPEED · +20% KILL ESSENCE'},
+  awakening:{name:'GRAVE AWAKENING',duration:30,color:'#b5ecae',warning:'Three marked graves glow and tremble in the cemetery.',description:'Six dead rise from the cemetery. Every kill earns 20% more essence for 30 seconds. Collect their bonus essence.',effect:'CEMETERY REINFORCEMENTS · +20% KILL ESSENCE · GOLD ESSENCE DROPS'},
+  blackout:{name:'BLACKOUT',duration:30,color:'#e0c27a',warning:'The lamps gutter and hiss…',description:'Every light in the estate dies. Only your flashlight cuts the dark. Every kill earns 20% more essence.',effect:'ALL LIGHTS OUT · FLASHLIGHT ONLY · +20% KILL ESSENCE'},
 });
 const ids=Object.keys(WORLD_EVENTS);
+// Lamps stutter out (t: 0→1) rather than switching off in one frame.
+function stutter(t){return t>=1?1:Math.min(1,Math.max(0,t+(Math.sin(t*47)*.5+Math.sin(t*19)*.5)*(1-t)*.9));}
 const walker=e=>!e.brute&&!e.dog&&!e.rareDog&&!e.feral;
 export function createWorldEvents({random=()=>Math.random(),graves=[],onWarning=()=>{},onStart=()=>{},onEnd=()=>{},spawn=()=>false}={}){
   let currentWave=0,lastEventWave=-2,id=null,phase='idle',left=0,age=0,marked=[],queue=[],spawnWait=0;
@@ -36,8 +39,8 @@ export function createWorldEvents({random=()=>Math.random(),graves=[],onWarning=
         if(phase==='scheduled')enterWarning();else activate();
         if(remainder>1e-9)this.update(remainder);return;
       }
-      age+=dt;
-      if(id!=='awakening'){left=Math.max(0,left-dt);if(left<=1e-9)finish('expired');return;}
+      age+=dt;left=Math.max(0,left-dt);
+      if(id!=='awakening'){if(left<=1e-9)finish('expired');return;}
       spawnWait-=dt;
       if(queue.length&&spawnWait<=0){
         // Try another marked grave when one is crowded. The callback validates
@@ -45,7 +48,8 @@ export function createWorldEvents({random=()=>Math.random(),graves=[],onWarning=
         for(let i=0;i<queue.length;i++)if(spawn(queue[i])){queue.splice(i,1);break;}
         spawnWait=EVENT_RULES.spawnInterval;
       }
-      if(!queue.length&&age>=2)finish('completed');
+      // The bonus window lasts the full duration, and every queued grave rises.
+      if(!queue.length&&left<=1e-9)finish('completed');
     },
     endWave(){finish('wave-cleared');},
     reset(){finish('reset');currentWave=0;lastEventWave=-2;},
@@ -54,10 +58,16 @@ export function createWorldEvents({random=()=>Math.random(),graves=[],onWarning=
     attackRate(e){return this.active('surge')&&walker(e)?1.2:1;},
     killReward(base){return phase==='active'?Math.round(base*1.2):base;},
     fogStrength(){return this.active('shroud')?Math.min(1,age/2,left/2):0;},
+    // 0 = lights as normal, 1 = total blackout. A warning makes them flicker.
+    darkness(){
+      if(id!=='blackout')return 0;
+      if(phase==='warning')return .45*Math.max(0,Math.sin(age*23)*Math.sin(age*7.3));
+      return phase==='active'?Math.min(stutter(age/1.4),stutter(left/1.6)):0;
+    },
     badge(){
       if(phase==='idle'||phase==='scheduled')return '';
-      const def=WORLD_EVENTS[id],status=phase==='warning'?`BEGINS IN ${Math.ceil(left)}s`:id==='awakening'?`${queue.length} STILL RISING`:`${Math.ceil(left)}s`;
-      return `<div class="worldEventBadge ${id}"><span class="eventSymbol" aria-hidden="true">${id==='shroud'?'≋':id==='surge'?'ϟ':'✝'}</span><div><strong>${def.name}</strong><b>${status}</b><small>${phase==='warning'?def.warning:def.effect}</small></div></div>`;
+      const def=WORLD_EVENTS[id],status=phase==='warning'?`BEGINS IN ${Math.ceil(left)}s`:id==='awakening'&&queue.length?`${Math.ceil(left)}s · ${queue.length} STILL RISING`:`${Math.ceil(left)}s`;
+      return `<div class="worldEventBadge ${id}"><span class="eventSymbol" aria-hidden="true">${id==='shroud'?'≋':id==='surge'?'ϟ':id==='blackout'?'◐':'✝'}</span><div><strong>${def.name}</strong><b>${status}</b><small>${phase==='warning'?def.warning:def.effect}</small></div></div>`;
     },
     get id(){return id;},get phase(){return phase;},get timeLeft(){return left;},get age(){return age;},get wave(){return currentWave;},get lastEventWave(){return lastEventWave;},get marked(){return marked;},get pendingSpawns(){return queue.length;},
   };

@@ -1,5 +1,5 @@
 import * as T from './three.module.js';
-import {EVENT_RULES} from './world-events.mjs?v=97';
+import {EVENT_RULES} from './world-events.mjs?v=135';
 export const EVENT_VISUAL_BUDGET=Object.freeze({markers:3,essence:16,lights:0,textures:0});
 export function createWorldEventVisuals(world){
   const root=new T.Group();root.name='Pooled world event effects';root.userData.dynamic=true;world.add(root);

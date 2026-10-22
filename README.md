@@ -27,6 +27,20 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Blackout event (version 135)
+
+- **Blackout** joins the Shroud, the Surge and Grave Awakening in the random world-event pool. Events can still start from wave 3, with a 40% chance per eligible wave, never two waves in a row, and each type is equally likely.
+- **Warning:** the lamps gutter and flicker for three seconds.
+- **The blackout:** the lights stutter out, and for 30 seconds every light in the estate is dark:
+  - the moon, moonlight and sky glow
+  - all lamp, candle and fireplace lights
+  - glowing bulbs, windows and fixtures (signs dim)
+  - the fog goes black
+- **What stays lit:** your flashlight, muzzle flash, zombies' red eyes, pickups and event essence. At the end the lights sputter back.
+- **Reward:** kills earn 20% more essence, like every other event.
+- **All events last 30 seconds.** The Surge was 25 seconds. Grave Awakening's bonus now lasts the full 30 seconds while its six reinforcements rise.
+- **Cost:** no lights are added or removed, so the shader light signature stays fixed. Only intensities and colours change.
+
 ## Easter egg: Olivia and the rat dragon (version 131)
 
 *Spoilers.* Every enemy Bella kills drops a **bone chip**: a small, spinning bone that lasts 30 s. Your own kills never drop one. A small tally appears under the wave counter once you have a chip.
