@@ -27,6 +27,13 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Sculpted arms and working elbows (version 140)
+
+- **Arms with anatomy.** Upper arms are no longer capped tubes: a deltoid wraps the shoulder and tapers to a V, biceps and triceps bellies sit front and back, the elbow has bony knobs and a pointed olecranon, and forearms are thick under the elbow and flat at the wrist. Starved and gaunt arms are bony with veins over the biceps, the bloated caretaker's sag under the arm, the brute's are heavy and scarred, and the feral's are wiry. Every arm rolls its own muscle sizes, so the left and right arms differ.
+- **Shoulders that slope.** The shoulder cap tucks under the shoulder line instead of sitting on top of it. Bare shoulders run down from the neck through a trapezius, coats gain a sloped shoulder seam, and sleeves roll over into the coat with no open hole at the top. Full sleeves close over the elbow, so a bent arm shows cloth.
+- **Moving elbows.** Every zombie rests its elbows at its own bend. The elbows flex as an arm swings forward and open as it swings back, a little behind the shoulder. The forearm and hand are sprung in world space, so they trail the upper arm and follow through rather than moving rigidly with it. Reaching arms grope, clutching arms are held high, dead arms flop, and idle zombies' elbows keep shifting. Elbows never bend backwards.
+- **Measured against v139:** across a stride the elbow now moves 0.4–0.65 rad (it was 0.24 rad and identical for every zombie), and peak joint accelerations stay at v139's level. Walkers have about 2,000 more triangles each (roughly 22,000) and the templates build in the same time.
+
 ## Steadier walk (version 139)
 
 - **Steady heading.** Bodies face a smoothed walking direction (about 0.4 s) instead of each frame's raw step. The walking direction itself is eased (about 0.14 s), so routes that step from grid cell to grid cell curve instead of zig-zagging. Turns sharper than about 70° are taken at once, so nobody grinds into a wall turning round. Heading jitter on routed walks fell about 3.3×.

@@ -2,7 +2,7 @@ import * as T from './three.module.js';
 import {BRUTE} from './brute.mjs?v=30';
 import {makeRedEyeMaterial,makeEyeGeometry} from './enemy-faces.mjs?v=133';
 import {ENEMY_SURFACE,markEnemySurface} from './enemy-surfaces.mjs?v=134';
-import {paint,tube,sweep,shard,uvWindow,pooledLump} from './enemy-sculpt.mjs?v=133';
+import {paint,tube,sweep,shard,uvWindow,pooledLump} from './enemy-sculpt.mjs?v=140';
 
 const UP=new T.Vector3(0,1,0), clamp=T.MathUtils.clamp;
 // Four estate archetypes (v133). Each has its own build, head, clothing and
@@ -26,6 +26,32 @@ const BUILDS={
   feral:  {chest:.82,waist:.64,depth:.78, neck:.78, limb:.78, ribs:.13,belly:-.3, hump:.12,slump:0,  head:{w:.94,h:1.0,d:1.02,brow:1.3,hollow:2,cheek:1.6}},
 };
 
+// Arm anatomy per build (v140): muscle definition, bony landmarks, soft fat
+// that sags under the arm, and overall girth on top of the build's limb size.
+const ARM_BUILDS={
+  stocky: {muscle:1.15,bony:.55,fat:.15,girth:1},
+  gaunt:  {muscle:.55,bony:1.3, fat:0,  girth:.9},
+  starved:{muscle:.4, bony:1.6, fat:0,  girth:.86},
+  bloated:{muscle:.35,bony:.25, fat:1,  girth:1.05},
+  brute:  {muscle:1.7,bony:.5,  fat:.12,girth:1},
+  feral:  {muscle:.95,bony:1.4, fat:0,  girth:.86},
+};
+// Half-width and half-depth down the upper arm (shoulder joint at y=0, elbow
+// at -.32) and the forearm (wrist at -.29). Both ends close over, so a bent
+// elbow never shows a hollow tube.
+const UPPER_ARM=[[-.345,.012,.012],[-.333,.03,.026],[-.315,.04,.033],[-.29,.043,.035],[-.25,.042,.039],[-.2,.044,.042],[-.15,.047,.045],[-.1,.051,.049],[-.05,.055,.053],[0,.058,.055],[.025,.053,.049],[.042,.042,.038],[.054,.026,.023],[.061,.004,.004]];
+const FOREARM=[[-.316,.009,.007],[-.305,.022,.016],[-.285,.027,.019],[-.25,.029,.021],[-.2,.033,.025],[-.15,.038,.031],[-.1,.043,.037],[-.05,.047,.042],[-.01,.045,.04],[.015,.04,.036],[.03,.03,.027],[.04,.004,.004]];
+const smooth01=x=>{x=Math.min(1,Math.max(0,x));return x*x*(3-2*x);};
+const bump=(y,c,s)=>Math.exp(-(((y-c)/s)**2));
+const lobe=(a,c,s)=>{const d=Math.atan2(Math.sin(a-c),Math.cos(a-c));return Math.exp(-((d/s)**2));};
+// Rings for tube() from a profile, cut to [from,to] (interpolating the cut
+// ends), scaled, with per-height offsets and a width multiplier.
+function armRings(profile,scale,from,to,offset=()=>({}),flare=()=>1){
+  const at=y=>{for(let i=1;i<profile.length;i++)if(y<=profile[i][0]){const [y0,w0,d0]=profile[i-1],[y1,w1,d1]=profile[i],f=(y-y0)/(y1-y0);return [y,w0+(w1-w0)*f,d0+(d1-d0)*f];}return profile[profile.length-1];};
+  const ys=[];if(from>profile[0][0])ys.push(from);for(const [y] of profile)if(y>=from&&y<=to&&!ys.includes(y))ys.push(y);if(to<profile[profile.length-1][0]&&!ys.includes(to))ys.push(to);
+  return ys.sort((a,b)=>a-b).map(y=>{const [,w,d]=at(y),f=flare(y);return [y,w*scale*f,d*scale*f,offset(y)];});
+}
+
 // Each enemy owns its small geometry/material palette. Meshes are merged per joint
 // by the game, retaining articulation, vertex colors, and precise hit regions.
 // Gait personality (v124). Every walker rolls its own drag leg, sway, hunch,
@@ -47,14 +73,30 @@ export function rollGait(rng=Math.random,{feral=false,brute=false}={}){
     hipLag:-.25+rng()*.5,
     bob:.6+rng()*.8,
     scuff:.35+rng()*.6,
-    attack:(r=>feral?(r<.65?'pouncer':'swiper'):brute?(r<.6?'slammer':'grabber'):r<.28?'grabber':r<.52?'swiper':r<.78?'biter':'flailer')(rng())
+    attack:(r=>feral?(r<.65?'pouncer':'swiper'):brute?(r<.6?'slammer':'grabber'):r<.28?'grabber':r<.52?'swiper':r<.78?'biter':'flailer')(rng()),
+    // Elbows (v140): how bent each one rests, how much it pumps with the
+    // stride, and how loosely the forearm and hand trail behind.
+    elbow:[rng()*.35,rng()*.35],
+    elbowSwing:.5+rng()*.9,
+    loose:.75+rng()*.5
   };
 }
-const DEFAULT_GAIT=Object.freeze({dragLeg:0,sway:1,hunch:0,arms:'clutch',reachArm:0,armLag:0,hipLag:0,bob:1,scuff:0,attack:'grabber'});
+const DEFAULT_GAIT=Object.freeze({dragLeg:0,sway:1,hunch:0,arms:'clutch',reachArm:0,armLag:0,hipLag:0,bob:1,scuff:0,attack:'grabber',elbow:[.15,.15],elbowSwing:1,loose:1});
 // Arm carriage: base pitch, swing, forearm bend.
 // Arm carriage: base pitch, swing, forearm bend. 'dead' is a broken arm that
 // flops lifelessly; 'claw' holds both hands up, grasping at the air.
 const ARM_CARRIAGE={reach:[-1.12,.10,-.12],dangle:[-.10,.30,-.06],clutch:[-.30,.22,-.23],dead:[.06,.5,-.02],claw:[-1.05,.12,-1.05]};
+// Elbows per carriage (v140): resting flex, how far the elbow pumps with the
+// swing, and the forearm's spring (frequency, damping). The forearm is sprung
+// in world space, so it trails the upper arm and follows through on its own.
+const ELBOW={reach:[-.2,.22,13,.5],dangle:[-.26,.3,13,.42],clutch:[-.62,.3,13,.45],dead:[-.06,.12,8,.2],claw:[-1.05,.3,13,.5],feral:[-.78,.36,13,.45]};
+// Keep a joint inside its range without a hard stop: within `k` of a limit
+// the value eases in instead of clipping.
+function softRange(x,lo,hi,k=.12){
+  if(x>hi-k)return hi-k*Math.exp(-(x-(hi-k))/k);
+  if(x<lo+k)return lo+k*Math.exp((x-(lo+k))/k);
+  return x;
+}
 // Attack poses per style (v137). Arms blend toward absolute targets (so an
 // arm already reaching does not end up overhead); torso, head and jaw are
 // additive. t is time into the attack, windup 0→1 to the contact frame,
@@ -174,19 +216,21 @@ export function createZombieRig({rng=Math.random,brute=false,feral=false}={}){
   const belt=wear(root,feral?pants:boot,[[.075,.168*Wa,.124*D],[.105,.164*Wa,.121*D]],{sides:16,rough:.03,ragged:feral?.02:0},{amount:.25});
   if(!feral)L(root,metal,[.02,.09,.125*D+.005],[.032,.025,.01],{rough:.1});
   // Living layer: a gaunt or swollen body with rib relief and a back hump.
-  const torsoRings=[[-.1,.165*Wa,.118*D],[.02,.152*Wa,.11*D],[.15,.168*W,.122*D],[.28,.196*W,.13*D],[.38,.226*W,.122*D,{z:-.008}],[.45,.185*W,.1*D,{z:-.012}],[.5,.072*N,.066*N,{z:.004}],[.61,.056*N,.054*N,{z:.022}]];
+  const torsoRings=[[-.1,.165*Wa,.118*D],[.02,.152*Wa,.11*D],[.15,.168*W,.122*D],[.28,.196*W,.13*D],[.38,.226*W,.122*D,{z:-.008}],[.45,.185*W,.1*D,{z:-.012}],[.485,.128*W,.084*D,{z:-.006}],[.515,.074*N,.067*N,{z:.006}],[.61,.056*N,.054*N,{z:.022}]];
   const torso=wear(spine,skin,torsoRings,{sides:16,rough:.05,freq:9,ribs:B.ribs,ribRange:[.25,.55],belly:B.belly,back:-B.hump*.35},{amount:.22,grime:.15,top:.6,bottom:-.1});
   // Sinewy neck and collarbones on the gaunt.
   for(const s of [-1,1]){
     S(spine,skin,[[s*.05,.6,-.01],[s*.045,.53,.035],[s*.028,.47,.075*D]],.011*N,{sides:5});
     if(B.ribs&&!clothed)S(spine,skin,[[s*.025,.45,.09*D],[s*.11,.455,.082*D],[s*.19*W,.44,.03]],.008,{sides:5,rough:.15});
   }
+  // Trapezius: bare shoulders slope from the neck down into the arm (v140).
+  if(!clothed)for(const s of [-1,1])S(spine,skin,[[s*.035,.56,-.02],[s*.1*W,.5,-.022],[s*.17*Math.max(.92,W),.462,-.016],[s*.225*Math.max(.92,W),.44,-.01]],t=>(.03-.012*t)*N,{sides:8,flat:1.7,rough:.08,segments:10});
   if(B.hump>.1)for(const s of [-1,1])L(spine,skin,[s*.09*W,.43,-.06],[.12*W*(.8+B.hump*.4),.07+B.hump*.05,.09*(1+B.hump*.5)],{rough:.2},[0,0,s*.35]);
   // Back: knotted spine through the skin on the starved, feral and brute.
   if(!clothed||B.ribs>.06)for(let i=0;i<7;i++)L(spine,feral?bone:skin,[0,.02+i*.068,-(torsoRings[Math.min(5,1+Math.floor(i/1.5))][2])*.98],[.022,.02,.02],{rough:.25});
 
   // Garments per archetype.
-  const coatRings=(scale,top=.47)=>[[-.13,.172*Wa*scale,.124*D*scale],[.0,.162*Wa*scale,.118*D*scale],[.15,.176*W*scale,.128*D*scale],[.28,.205*W*scale,.137*D*scale],[.385,.236*W*scale,.13*D*scale,{z:-.008}],[top,.17*W*scale,.1*D*scale,{z:-.01}]];
+  const coatRings=(scale,top=.47)=>[[-.13,.172*Wa*scale,.124*D*scale],[.0,.162*Wa*scale,.118*D*scale],[.15,.176*W*scale,.128*D*scale],[.28,.205*W*scale,.137*D*scale],[.385,.236*W*scale,.13*D*scale,{z:-.008}],[top,.17*W*scale,.1*D*scale,{z:-.01}],[top+.032,.12*W*scale,.084*D*scale,{z:-.012}]];
   const hole=(cu,cv,ru,rv)=>(u,v)=>((u-cu)/ru)**2+((v-cv)/rv)**2<1;
   const any=(...cuts)=>(u,v)=>cuts.some(c=>c(u,v));
   if(style.name==='groundskeeper'){
@@ -421,21 +465,52 @@ export function createZombieRig({rng=Math.random,brute=false,feral=false}={}){
     legs.push({pivot:leg,calf,foot});pieces.push({node:leg,a:tag+'hip',b:tag+'knee'},{node:calf,a:tag+'knee',b:tag+'ankle'},{node:foot,a:tag+'ankle',b:tag+'toe'});
 
     const arm=joint(spine,[side*.238*Math.max(.92,W),.411,-.004],tag+' shoulder');
-    wear(arm,skin,[[-.33,.041*lim,.041*lim],[-.22,.047*lim,.047*lim],[-.1,.058*lim,.055*lim],[.0,.07*lim,.066*lim],[.06,.074*lim,.07*lim],[.085,.03,.03]],{rough:B.ribs?.13:.07,freq:11,ridge:.04,ridgeAngle:Math.PI*1.5},{grime:.15,top:.08,bottom:-.33});
-    if(!clothed)L(arm,skin,[side*.012,-.01,0],[.075*lim,.085,.07*lim],{rough:.15});
+    // v140: sculpted arms. A deltoid that wraps the shoulder and tapers to a V,
+    // biceps and triceps bellies, bony elbows, and a forearm that is thick under
+    // the elbow and flat at the wrist; per build and per arm, never a capsule.
+    const A=ARM_BUILDS[style.build],k=rand(.82,1.18),mus={d:A.muscle*k*rand(.85,1.15),b:A.muscle*k*rand(.8,1.2),t:A.muscle*k*rand(.8,1.2)},girth=A.girth*lim*rand(.95,1.05);
+    const dir=(lx,z)=>Math.atan2(z,side*lx),lat=dir(1,0),med=dir(-1,0),front=dir(0,1),back=dir(0,-1);
+    const upperRelief=(y,a)=>{
+      const env=smooth01((y+.17)/.11)*(1-smooth01((y-.015)/.04)),spread=.7+.9*smooth01((y+.15)/.17);
+      return mus.d*.24*env*lobe(a,dir(.95,.3),spread)
+        +mus.b*.17*bump(y,-.17,.065)*lobe(a,front,.55)
+        +mus.t*.15*bump(y,-.115,.085)*lobe(a,dir(.35,-.94),.7)
+        +A.fat*.2*bump(y,-.18,.08)*lobe(a,dir(-.45,-.9),.75)
+        -A.muscle*.05*bump(y,-.17,.06)*lobe(a,med,.35)
+        +A.bony*.09*bump(y,-.305,.02)*(lobe(a,lat,.4)+lobe(a,med,.4));
+    };
+    const upperX=y=>side*(.004-.05*smooth01(y/.06));
+    const upper=armRings(UPPER_ARM,girth,-1,1,y=>({x:upperX(y)}));
+    wear(arm,skin,upper,{sides:16,rough:B.ribs?.1:.05,freq:11,relief:upperRelief},{grime:.15,top:.08,bottom:-.33});
     const sl=sleeve[index];
     if(sl!=='none'){
-      const bottom=sl==='rolled'?-.15:sl==='torn'?-.08:-.34,rings=[[bottom,.062*lim,.06*lim],[-.2,.066*lim,.064*lim],[-.1,.078*lim,.074*lim],[0,.09*lim,.085*lim],[.06,.092*lim,.088*lim],[.088,.035,.035]].filter(r=>r[0]>=bottom);
-      wear(arm,style.name==='caretaker'?lining:cloth,rings,{folds:.1,foldFreq:5,ragged:sl==='torn'?.05:.03,inner:.06,innerMat:lining},{grime:.3,top:.09,bottom});
-      if(sl==='rolled')L(arm,lining,[0,-.15,0],[.07*lim,.022,.067*lim],{rough:.2});
+      // Sleeves drape over the same shoulder and roll into the coat at the top.
+      const bottom=sl==='rolled'?-.15:sl==='torn'?-.08:-.34,cloak=style.name==='caretaker'?1.18:1.26;
+      const rings=armRings(UPPER_ARM,girth*cloak,bottom,1,y=>({x:upperX(y)*1.1}),y=>y<bottom+.03?1.06:1);
+      wear(arm,style.name==='caretaker'?lining:cloth,rings,{sides:16,folds:.1,foldFreq:5,ragged:sl==='torn'?.05:.03,inner:.06,innerMat:lining,relief:(y,a)=>upperRelief(y,a)*.45},{grime:.3,top:.09,bottom});
+      if(sl==='rolled')wear(arm,lining,[[-.165,.06*girth,.056*girth],[-.15,.068*girth,.064*girth],[-.132,.064*girth,.06*girth]],{sides:14,rough:.12,folds:.1},{amount:.25});
+    }else if(B.ribs||feral){
+      // Starved arms show the veins running down over the biceps.
+      for(let i=0;i<2;i++){const o=i?.25:-.2,p=(y,s=1)=>{const a=front+o,r=(.046+.008*bump(y,-.17,.07))*girth*s;return [Math.cos(a)*r+upperX(y),y,Math.sin(a)*r];};S(arm,skin,[p(-.05),p(-.14),p(-.22),p(-.3,.96)],.0032,{sides:4,rough:.3});}
     }
+    if(brute)for(let i=0;i<5;i++){const y=-.02-i*.022,a=lat+side*.2,r=.068*girth;S(arm,boot,[[Math.cos(a-.12)*r,y,Math.sin(a-.12)*r],[Math.cos(a+.12)*r,y-.004,Math.sin(a+.12)*r]],.002,{sides:3,segments:2});}
     const forearm=joint(arm,[0,-.32,0],tag+' elbow');
-    L(forearm,skin,[0,-.005,-.012],[.05*lim,.047,.05*lim],{rough:.15});
     const exposed=style.name==='groundskeeper'&&index===1;
-    wear(forearm,exposed?flesh:skin,[[-.305,.03*lim,.024*lim],[-.27,.028*lim,.024*lim],[-.17,.037*lim,.034*lim],[-.07,.048*lim,.044*lim],[.03,.046*lim,.046*lim]],{rough:.08,ridge:.1,ridgeAngle:Math.PI*1.5,cut:exposed?hole(.25,.55,.12,.3):null},{grime:.2,top:.03,bottom:-.3});
+    const foreRelief=(y,a)=>.12*bump(y,.006,.022)*lobe(a,back,.5)+A.bony*.14*bump(y,.006,.024)*lobe(a,back,.45)
+      +mus.b*.15*bump(y,-.055,.06)*lobe(a,dir(.75,.65),.5)
+      +mus.t*.12*bump(y,-.085,.07)*lobe(a,dir(-.7,.7),.6)
+      +A.bony*.06*smooth01((-.04-y)/.05)*smooth01((y+.28)/.04)*lobe(a,dir(-.4,-.92),.22)
+      +A.bony*.1*bump(y,-.275,.014)*lobe(a,dir(-.5,-.85),.4)
+      +A.fat*.1*bump(y,-.07,.08);
+    const foreZ=y=>.012*smooth01(-y/.29);
+    wear(forearm,exposed?flesh:skin,armRings(FOREARM,girth,-1,1,y=>({z:foreZ(y)})),{sides:16,rough:.06,freq:9,relief:foreRelief,cut:exposed?hole(.25,.55,.12,.3):null},{grime:.2,top:.03,bottom:-.3});
     if(exposed){S(forearm,bone,[[0,.0,.0],[.004,-.12,.012],[0,-.27,.006]],.011,{sides:6,rough:.15});S(forearm,bone,[[.012,-.03,-.01],[.016,-.15,0],[.012,-.27,-.004]],.008,{sides:5,rough:.15});}
-    if(sl==='full'){const r=[[-.25,.05*lim,.047*lim],[-.15,.056*lim,.054*lim],[-.05,.064*lim,.062*lim],[.03,.066*lim,.064*lim]];wear(forearm,cloth,r,{folds:.12,ragged:.045,inner:.06,innerMat:lining},{grime:.4,top:.03,bottom:-.25});}
-    else for(let i=0;i<2;i++)S(forearm,skin,[[(i?.012:-.012),-.04,.034*lim],[(i?.014:-.01),-.16,.03*lim],[(i?.01:-.008),-.26,.022*lim]],.005,{sides:4});
+    if(sl==='full'){
+      // The forearm sleeve closes over the elbow, so a bent arm shows cloth, not a hole.
+      const r=armRings(FOREARM,girth*1.24,-.25,.06,y=>({z:foreZ(y)}),y=>y<-.2?1.12:1).map(([y,w,d,o])=>[y,Math.max(w,.05*girth),Math.max(d,.047*girth),o]);
+      wear(forearm,cloth,r,{sides:16,folds:.12,ragged:.045,inner:.06,innerMat:lining,relief:(y,a)=>.1*bump(y,.01,.03)*lobe(a,back,.6)},{grime:.4,top:.03,bottom:-.25});
+    }
+    else for(let i=0;i<2;i++)S(forearm,skin,[[(i?.012:-.012),-.06,.04*girth+foreZ(-.06)],[(i?.014:-.01),-.17,.034*girth+foreZ(-.17)],[(i?.01:-.008),-.27,.021*girth+foreZ(-.27)]],.0045,{sides:4});
     if(style.name==='caretaker'&&index===0){for(let i=0;i<4;i++)wear(forearm,lining,[[-.08-i*.04,.05*lim,.047*lim,{twist:i}],[-.055-i*.04,.051*lim,.048*lim]],{sides:12,ragged:.006,rough:.06},{amount:.25});for(let i=0;i<3;i++)L(forearm,wound,[rand(-.02,.02),-.09-i*.05,.05*lim],[.012,.016,.004],{rough:.4});}
     if(feral)shape(forearm,own(shard(rng,{bend:.2})),bone,[0,.0,-.045],[.014,.05,.014],[-2.2,0,0]);
     if(brute&&index===0){wear(forearm,boot,[[-.26,.05*lim,.048*lim],[-.15,.056*lim,.054*lim],[-.04,.062*lim,.06*lim]],{rough:.05,folds:.05},{amount:.2});for(const y of [-.22,-.12])wear(forearm,iron,[[y,.058*lim,.056*lim],[y+.012,.06*lim,.058*lim]],{sides:10});}
@@ -550,7 +625,6 @@ const reach=(th,k)=>THIGH*Math.cos(th)+SHIN*Math.cos(th+k);
 // and ankle blend between those poses, so nothing snaps at lift-off or
 // touch-down. `support` is a weight that rises and falls smoothly through the
 // stance and is zero in the air.
-const smooth01=x=>{x=Math.min(1,Math.max(0,x));return x*x*(3-2*x);};
 function stancePose(t,span,drag,bob){
   const k=(.09*Math.sin(Math.PI*Math.min(1,t*2.2))*bob+.04)*(drag?.6:1),hip=solveHip(-span/2+span*t,k),lift=smooth01((t-.72)/.28);
   return {hip,knee:k+lift*.25,foot:-(hip+k)+lift*.32,height:reach(hip,k)};
@@ -644,9 +718,19 @@ export function animateZombie(e,dt,distance,moved,look=null){
     const clawing=claw?Math.sin(t*3.4+j*Math.PI)*.28+Math.sin(t*7.9+j)*.06:0;
     const ax=springTo(e,'arm'+j,base-a*swing*w-run*.14+reachTremble+clawing+(pose==='dangle'?-.08*Math.sin(t*.9+j)*(1-w):0),dt,dead?4:pose==='dangle'?7.5:11,dead?.12:pose==='dangle'?.32:.55);
     arm.pivot.rotation.set(ax,side*(pose==='reach'?.04:claw?-.12:.09)-pelvisYaw*(dead?1.2:.4),side*(dead?.04:.10+Math.sin(p*.5)*.035)+shrug*side*.25);
-    const fx=springTo(e,'fore'+j,(e.feral?-.7:bend)-Math.max(0,a)*.18*w+(claw?Math.sin(t*3.4+j*Math.PI+.8)*.3:0),dt,dead?5:9,dead?.15:.4);
-    arm.forearm.rotation.set(fx,dead?Math.sin(t*1.3+j)*.25:0,side*(dead?-.12:.055));
-    arm.hand.rotation.set(springTo(e,'hand'+j,(pose==='reach'?-.05:claw?-.55+Math.sin(t*6.8+j*2)*.35:dead?.25:-.17)+(ax-base)*-.35,dt,dead?4:8,dead?.1:.3),0,side*.13+Math.sin(t*1.7+j)*.05);
+    // v140: the elbow rests at this zombie's own bend, flexes as the arm swings
+    // forward and opens as it swings back (a little behind the shoulder), and
+    // the forearm and hand are sprung in world angle so they lag and overshoot.
+    const [rest,flex,ef,ed]=ELBOW[e.feral?'feral':pose],flexDrive=.5+.5*Math.sin(p+j*Math.PI-g.armLag-.55);
+    const grope=pose==='reach'?-.16*(.5+.5*Math.sin(t*1.6+j*2.1))-.05*Math.sin(t*4.3+j):0;
+    const idle=-.1*(.5+.5*Math.sin(t*.55+j*2.4+e.lean*7))*(1-w);
+    const fxTarget=rest-(g.elbow?.[j]??.15)*(dead?.2:1)-flex*(g.elbowSwing??1)*w*flexDrive-run*.2+grope+idle+(claw?Math.sin(t*3.4+j*Math.PI+.8)*.3:0);
+    const loose=g.loose??1,fw=springTo(e,'foreW'+j,ax+fxTarget,dt,ef/loose,ed*(.8+.2*loose));
+    const fx=softRange(fw-ax,-2.3,.04);
+    arm.forearm.rotation.set(fx,side*(dead?.06+Math.sin(t*1.3+j)*.25:.08+.16*Math.min(1.4,-fx)),side*(dead?-.12:.055));
+    const handTarget=(pose==='reach'?-.05:claw?-.55+Math.sin(t*6.8+j*2)*.35:dead?.25:-.17)-.12*(1-flexDrive)*w;
+    const hw=springTo(e,'handW'+j,ax+fx+handTarget,dt,dead?8:15/loose,dead?.22:.45);
+    arm.hand.rotation.set(softRange(hw-ax-fx,-1.25,.7,.2),0,side*.13+Math.sin(t*1.7+j)*.05);
     e.spine.rotation.z+=shrug*side*-.06+(dead?side*.05:0);
     const pose2=attack?.arms[j];
     if(pose2){const k=attack.weight;arm.pivot.rotation.x+=(pose2.px-arm.pivot.rotation.x)*k;arm.pivot.rotation.z+=(side*(.1+pose2.pz)-arm.pivot.rotation.z)*k;arm.forearm.rotation.x+=(pose2.fx-arm.forearm.rotation.x)*k;arm.hand.rotation.x+=(pose2.hx-.17-arm.hand.rotation.x)*k;}

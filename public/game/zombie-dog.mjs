@@ -1,8 +1,8 @@
 import * as T from './three.module.js';
-import {applyHitReaction,springTo} from './zombies.mjs?v=139';
+import {applyHitReaction,springTo} from './zombies.mjs?v=140';
 import {makeRedEyeMaterial,makeEyeGeometry} from './enemy-faces.mjs?v=133';
 import {ENEMY_SURFACE,markEnemySurface} from './enemy-surfaces.mjs?v=134';
-import {paint,tube,sweep,shard,uvWindow,pooledLump} from './enemy-sculpt.mjs?v=133';
+import {paint,tube,sweep,shard,uvWindow,pooledLump} from './enemy-sculpt.mjs?v=140';
 const clamp=T.MathUtils.clamp;
 export const DOG_SPEED_MULTIPLIER=1.25;
 export const RARE_DOG_SPEED_MULTIPLIER=1.5;
