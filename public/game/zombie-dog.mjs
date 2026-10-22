@@ -1,5 +1,5 @@
 import * as T from './three.module.js';
-import {applyHitReaction,springTo} from './zombies.mjs?v=138';
+import {applyHitReaction,springTo} from './zombies.mjs?v=139';
 import {makeRedEyeMaterial,makeEyeGeometry} from './enemy-faces.mjs?v=133';
 import {ENEMY_SURFACE,markEnemySurface} from './enemy-surfaces.mjs?v=134';
 import {paint,tube,sweep,shard,uvWindow,pooledLump} from './enemy-sculpt.mjs?v=133';

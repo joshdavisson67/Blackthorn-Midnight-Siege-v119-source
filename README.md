@@ -27,6 +27,13 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Steadier walk (version 139)
+
+- **Steady heading.** Bodies face a smoothed walking direction (about 0.4 s) instead of each frame's raw step. The walking direction itself is eased (about 0.14 s), so routes that step from grid cell to grid cell curve instead of zig-zagging. Turns sharper than about 70° are taken at once, so nobody grinds into a wall turning round. Heading jitter on routed walks fell about 3.3×.
+- **Slower, longer strides.** Walkers now take about 1.8 steps a second instead of 2.3, so the shamble reads heavier and less like a metronome. Planted feet slide even less (0.08 m per metre walked).
+- **Gentler rocking.** Hip twist, pelvis roll, side sway, spine tilt and head sway are smaller and pass through softer springs. Mid-stride twitches are only a flicker; standing zombies still twitch fully.
+- **Measured against v138:** pelvis roll is about 10× smoother, spine tilt about 4×, head roll about 2.6× and the knees about 1.5×.
+
 ## Smooth gait (version 138)
 
 - **No more tick-tock.** The hip sway, pelvis roll, spine tilt, head roll and limp dip used to flip instantly from one side to the other each time the weight changed legs. They now follow a smooth weight-balance signal: each planted leg's support rises and falls through its stance, and a spring smooths the result.

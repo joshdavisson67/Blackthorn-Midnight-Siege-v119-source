@@ -1,7 +1,7 @@
 import * as T from './three.module.js';
 import {BRUTE} from './brute.mjs?v=30';
-import {createZombieRig,tagZombie,rollGait} from './zombies.mjs?v=138';
-import {createZombieDogRig} from './zombie-dog.mjs?v=138';
+import {createZombieRig,tagZombie,rollGait} from './zombies.mjs?v=139';
+import {createZombieDogRig} from './zombie-dog.mjs?v=139';
 import {ENEMY_SURFACE,enemySurfaces,atlasUV,enemySurfaceShader,addDetailCoordinates} from './enemy-surfaces.mjs?v=134';
 
 export function bakeEnemyPalette(rig){
@@ -84,7 +84,7 @@ export function createEnemyAssets(batch){
     template.group.traverse(o=>original.push(o));group.traverse(o=>copies.push(o));for(let i=0;i<original.length;i++)nodes.set(original[i],copies[i]);
     const remap=value=>{if(value?.isObject3D)return nodes.get(value);if(Array.isArray(value))return value.map(remap);if(value&&Object.getPrototypeOf(value)===Object.prototype){const out={};for(const [k,v] of Object.entries(value))out[k]=remap(v);return out;}return value;};
     const rig={};for(const [key,value] of Object.entries(template))rig[key]=key==='resources'?value:remap(value);
-    rig.sharedAssets=true;rig.phase=rng()*Math.PI*2;rig.attackHand=Math.floor(rng()*2);rig.limp=feral?.025:.12+rng()*.28;rig.lean=feral?.025:-.12+rng()*.24;rig.stride=feral?1.55+rng()*.15:(dog||rareDog)?.75+rng()*.12:.85+rng()*.3;
+    rig.sharedAssets=true;rig.phase=rng()*Math.PI*2;rig.attackHand=Math.floor(rng()*2);rig.limp=feral?.025:.12+rng()*.28;rig.lean=feral?.025:-.12+rng()*.24;rig.stride=feral?1.55+rng()*.15:(dog||rareDog)?.75+rng()*.12:1.12+rng()*.26;
     if(!dog&&!rareDog)rig.gait=rollGait(rng,{feral,brute});rig.crawling=false;rig.crawl=0;rig.legDamage=0;
     // Bosses and their tanks pass an explicit uniform scale (v130).
     group.scale.setScalar(scale??(rareDog?1.06+rng()*.045:brute?BRUTE.scale:dog?.97+rng()*.06:.97+rng()*.09));
