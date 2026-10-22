@@ -51,9 +51,10 @@ export function verifyRenderPerformance(qa,frames){
     const next=[];state.scene.traverseVisible(o=>{if(o.isLight)next.push(o.uuid);});assert.deepEqual(next,lighting,'Moving between floors must not change the shader light signature');
   }
   for(const template of state.enemyAssets.templates)template.group.traverse(mesh=>{if(mesh.isMesh&&mesh.material.userData.bakedPalette){assert.equal(mesh.geometry.attributes.surfaceFinish.count,mesh.geometry.attributes.position.count);assert.equal(mesh.geometry.attributes.rageColor.count,mesh.geometry.attributes.position.count);}});
-  const {map,bumpMap,width,height,gutter,tile,cols,rows}=state.enemyAssets.surfaces;
-  assert(width*height*4*2*4/3<=24*1024*1024,'Enemy texture allocation is bounded to one mipmapped atlas pair');
-  assert(state.renderer.initializedTextures.has(map)&&state.renderer.initializedTextures.has(bumpMap),'Both surface maps must upload before the game starts');
+  const {map,bumpMap,detail,width,height,gutter,tile,cols,rows}=state.enemyAssets.surfaces;
+  const detailBytes=detail.image.width*detail.image.height*4*4/3;
+  assert(width*height*4*2*4/3+detailBytes<=24*1024*1024,'Enemy texture allocation is bounded to one mipmapped atlas pair plus the small close-range detail strip');
+  assert(state.renderer.initializedTextures.has(map)&&state.renderer.initializedTextures.has(bumpMap)&&state.renderer.initializedTextures.has(detail),'All enemy surface maps must upload before the game starts');
   for(const template of state.enemyAssets.templates){
     const instance=state.enemyAssets.instantiate({rng:()=>.2,brute:template.brute,dog:template.dog,rareDog:template.rareDog,feral:template.feral});
     state.enemyAssets.enrage(instance);

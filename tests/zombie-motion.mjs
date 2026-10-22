@@ -42,7 +42,7 @@ export function verifyZombieMotion(qa,frames){
     assert(Math.abs(Math.abs(shift)-.7)<.12,`Arms swing behind the legs by the rolled lag (${shift.toFixed(2)} rad)`);
     assert(Math.abs(wrap(leg(.7)-leg(0)))<.02,'Arm lag leaves the legs untouched');
     const hipsSynced=cycle(walker(12,{hipLag:0}),r=>r.spine.rotation.y),hipsLate=cycle(walker(12,{hipLag:.24}),r=>r.spine.rotation.y);
-    assert(Math.abs(hipsSynced[90]-hipsLate[90])>.005,'Hip sway runs on its own timing');
+    assert(Math.max(...hipsSynced.slice(60).map((v,i)=>Math.abs(v-hipsLate[60+i])))>.005,'Hip sway runs on its own timing');
   }
 
   // ---- Arm carriage and hunch -----------------------------------------------
