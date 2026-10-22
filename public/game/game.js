@@ -5,8 +5,8 @@ import {createCurseUI,curseSummary} from './curse-ui.mjs?v=130';
 import {BOSS,WARDEN,bossPhase,dueSummons,lanceVolley,cooldownScale,segmentDistance,wakeStep,dressKnight,dressWarden,createBossEffects} from './blackthorn-boss.mjs?v=130';
 import {ENRAGE,enrageNearby} from './enrage.mjs?v=130';
 import {createCrowd,enemyBody,PLAYER_RADIUS,SPREAD} from './crowd.mjs?v=123';
-import {createLeaderboard} from './leaderboard.mjs?v=138';
-import {createChangelog} from './changelog.mjs?v=138';
+import {createLeaderboard} from './leaderboard.mjs?v=139';
+import {createChangelog} from './changelog.mjs?v=139';
 import {configureMinimap} from './minimap-settings.mjs?v=79';
 import {COMBAT,createWeaponRecoil,staggerLimits,advanceStagger,registerStagger,createCombatHud} from './combat-feedback.mjs?v=84';
 import {ARMOR,armorRank} from './armor.mjs?v=94';
@@ -28,17 +28,17 @@ import {createWeaponModel,updatePistolSlide} from './weapon-models.mjs?v=129';
 import {weaponSurfaces} from './weapon-surfaces.mjs?v=87';
 import {GRENADE_THROW,createGrenadeAssets,createGrenadeThrow} from './grenade-throw.mjs?v=44';
 import {POWERUPS,choosePowerup,powerupIcon,createPowerupAssets} from './powerups.mjs?v=129';
-import {createEnemyAssets} from './enemy-assets.mjs?v=138';
+import {createEnemyAssets} from './enemy-assets.mjs?v=139';
 import {createCombatLights} from './combat-lights.mjs?v=129';
 import {createLighting,prepareLightingMaterials,patchLightingMaterial} from './lighting.mjs?v=120';
 import {createEnvironmentLights} from './environment-lights.mjs?v=135';
 import {createEffectPool} from './effect-pool.mjs?v=47';
-import {animateZombieDog,DOG_SPEED_MULTIPLIER,RARE_DOG_SPEED_MULTIPLIER} from './zombie-dog.mjs?v=138';
+import {animateZombieDog,DOG_SPEED_MULTIPLIER,RARE_DOG_SPEED_MULTIPLIER} from './zombie-dog.mjs?v=139';
 import {UPPER_Y,UPPER_CEILING,UPPER_SPAWNS,hasUpperFloor,STAIR,EXTERIOR_STAIRS,supportBelow,stairHeight,stairAt,moveActor,updateActorHeight,buildVerticalNavigation,upperLocation,OLIVIA_ATTIC,setAtticOpen,isAtticOpen,inAttic} from './vertical.mjs?v=131';
 import {EASTER_EGG,buildOliviaAttic,boneChipModel} from './olivia.mjs?v=131';
 import {buildSecondFloor,drawUpperMap} from './second-floor.mjs?v=131';
 import {BELLA,BELLA_PAW,createBellaCompanion} from './bella.mjs?v=131';
-import {tagZombie,reactToHit,animateZombie,beginZombieDeath,updateZombieDeath,noteLegDamage,CRAWL} from './zombies.mjs?v=138';
+import {tagZombie,reactToHit,animateZombie,beginZombieDeath,updateZombieDeath,noteLegDamage,CRAWL} from './zombies.mjs?v=139';
 import {addEstateDetail} from './estate-detail.mjs?v=131';
 import {buildFacade,mansionRoofGeometry,PORTICO} from './facade.mjs?v=131';
 import {createReticleHud} from './reticles.mjs?v=116';
@@ -1037,6 +1037,10 @@ if(climbTo){tx=climbTo.x;tz=climbTo.z;}
 let dx=tx-p.x,dz=tz-p.z,len=Math.hypot(dx,dz),heading=Math.atan2(player.x-p.x,player.z-p.z);
 if(len>.1&&(dist>1.03||!sameFloor)&&!casting){
   dx/=len;dz/=len;crowd.steer(e,dx,dz,elapsed);dx=e.steerX;dz=e.steerZ;
+  // v139: ease the walking direction (~0.14s) so grid-cell routes curve
+  // instead of zig-zagging the body from cell to cell. Sharp turns (over ~70°)
+  // are taken at once so nobody grinds into a wall turning round.
+  {const k=(e.walkDirX??dx)*dx+(e.walkDirZ??dz)*dz<.3?1:1-Math.exp(-dt*7);let sx=(e.walkDirX??dx)+(dx-(e.walkDirX??dx))*k,sz=(e.walkDirZ??dz)+(dz-(e.walkDirZ??dz))*k;const n=Math.hypot(sx,sz);if(n>.2){sx/=n;sz/=n;}else{sx=dx;sz=dz;}e.walkDirX=sx;e.walkDirZ=sz;dx=sx;dz=sz;}
   const pace=(e.staggerLeft>0?0:1)*(e.crawling?(e.crawlDrop>0?0:CRAWL.speed):1)*(frenzyWave===wave&&wave?1.4:1)*(e.attackTime>=0?(e.dog?.65:.4):1)*(e.legHit>0?.55:1)*(e.warCry>0?BOSS.cry.speed:1),step=e.speed*worldEvents.speedMultiplier(e)*dt*pace;
   moveWithCollision(p,dx*step,dz*step,e.radius,e);
   const moved=Math.hypot(p.x-oldX,p.z-oldZ);
@@ -1048,7 +1052,10 @@ if(len>.1&&(dist>1.03||!sameFloor)&&!casting){
     moveWithCollision(p,-dz*side*remaining,dx*side*remaining,e.radius,e);
   }
   if(e.stuck>.12)shoulderNeighbour(e,dx,dz,dt);
-  if(Math.hypot(p.x-oldX,p.z-oldZ)>.001)heading=Math.atan2(p.x-oldX,p.z-oldZ);
+  // v139: face a smoothed walking direction (~0.35s), not each frame's raw
+  // step, so crowd steering and wall slides do not swing the body side to side.
+  {const k=1-Math.exp(-dt*2.4),vx=(p.x-oldX)/Math.max(dt,1e-4),vz=(p.z-oldZ)/Math.max(dt,1e-4);e.faceX=(e.faceX??vx)+(vx-(e.faceX??vx))*k;e.faceZ=(e.faceZ??vz)+(vz-(e.faceZ??vz))*k;
+   if(Math.hypot(e.faceX,e.faceZ)>.25)heading=Math.atan2(e.faceX,e.faceZ);}
 }
 
 // Turn at a limited, eased rate (v136): bodies swing round with weight rather

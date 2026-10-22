@@ -35,7 +35,8 @@ export function verifyZombieMotion(qa,frames){
   // ---- Out of step: arms lag the legs by the rolled amount -----------------
   {
     // Fit each joint's phase at the known stride frequency (frames 60-119, full motion).
-    const phaseOf=(e,read)=>{const v=cycle(e,read).slice(60),m=mean(v),w=e.speed/60*6.4/e.stride;let c=0,sn=0;v.forEach((x,i)=>{const t=(i+60)*w;c+=(x-m)*Math.cos(t);sn+=(x-m)*Math.sin(t);});return Math.atan2(c,sn);};
+    // Fit over two full strides after the springs settle (strides are longer since v139).
+    const phaseOf=(e,read)=>{const v=cycle(e,read,300).slice(120),m=mean(v),w=e.speed/60*6.4/e.stride;let c=0,sn=0;v.forEach((x,i)=>{const t=(i+120)*w;c+=(x-m)*Math.cos(t);sn+=(x-m)*Math.sin(t);});return Math.atan2(c,sn);};
     const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
     const arm=lag=>phaseOf(walker(11,{armLag:lag,arms:'clutch'}),r=>r.arms[0].pivot.rotation.x),leg=lag=>phaseOf(walker(11,{armLag:lag,arms:'clutch'}),r=>r.legs[0].pivot.rotation.x);
     const shift=wrap(arm(.7)-arm(0));
@@ -131,5 +132,15 @@ export function verifyZombieMotion(qa,frames){
   const pts=Object.values(target.ragdoll.points);assert(pts.every(p=>[p.p.x,p.p.y,p.p.z].every(Number.isFinite)&&p.p.y>-.3),'Crawler deaths settle on the floor');
   const brute=qa.makeZombie(-30,22,true);for(let i=0;i<8;i++)qa.damageEnemy(brute,brute.maxHp*.09,false,leg);
   assert(!brute.crawling&&!brute.dead,'Brutes shrug off leg damage');
+  // Routed walkers hold their heading instead of zig-zagging the body with
+  // every grid step of their route (v139): bounded heading jitter.
+  let jitter=0;
+  for(const [x,z] of [[3,4],[-3,2],[-8,4],[9,0]]){
+    qa.start();qa.holdSpawns();qa.setHealth(1e9);qa.setPlayer(0,23);
+    const s=qa.makeZombie(x,z);s.speed=1.15;s.flank=0;const ys=[];
+    for(let i=0;i<420;i++){frames(1);if(i>60)ys.push(s.group.rotation.y);}
+    let j=0;for(let i=2;i<ys.length;i++)j+=Math.abs(ys[i]-2*ys[i-1]+ys[i-2]);jitter+=j/ys.length*60/4;
+  }
+  assert(jitter<.025,`Routed walkers turn smoothly instead of zig-zagging (${jitter.toFixed(3)})`);
   console.log('PASS: zombie motion — 20 distinct rolled gaits, either leg dragging and scuffing, arms and hips out of step, reach/dangle/mixed carriage and hunch, continuous drop to a crawl with no mid-fall attacks, reduced-speed crawlers that still bite and die as ragdolls; brutes and dogs stay upright.');
 }
