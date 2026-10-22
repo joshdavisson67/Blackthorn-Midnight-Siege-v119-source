@@ -1,7 +1,7 @@
 import * as T from './three.module.js';
-import {applyHitReaction} from './zombies.mjs?v=133';
+import {applyHitReaction} from './zombies.mjs?v=134';
 import {makeRedEyeMaterial,makeEyeGeometry} from './enemy-faces.mjs?v=133';
-import {ENEMY_SURFACE,markEnemySurface} from './enemy-surfaces.mjs?v=133';
+import {ENEMY_SURFACE,markEnemySurface} from './enemy-surfaces.mjs?v=134';
 import {paint,tube,sweep,shard,uvWindow,pooledLump} from './enemy-sculpt.mjs?v=133';
 const clamp=T.MathUtils.clamp;
 export const DOG_SPEED_MULTIPLIER=1.25;
@@ -70,6 +70,12 @@ export function createZombieDogRig({rng=Math.random,rare=false}={}){
   }
   const collar=own(new T.TorusGeometry(.12,.022,6,20));shape(spine,collar,leather,[0,.15,.25],[1,1,1]).rotation.x=.32;
   L(spine,metal,[0,.01,.353],[.03,.036,.01],{rough:.1});
+  // Definition (v134): a studded collar, strings of bloody drool, matted
+  // haunches and one cheek torn back to the gums.
+  for(let i=0;i<8;i++){const a=i/8*Math.PI*2,cx=Math.cos(a)*.13,cy=Math.sin(a)*.13;spike(spine,metal,[cx,.15+cy*Math.cos(.32),.25-cy*Math.sin(.32)],[.012,.03,.012],[.32+Math.PI/2*0,0,a-Math.PI/2],.0);}
+  for(const side of [-1,1])S(head,gum,[[side*.045,-.06,.2],[side*.05,-.1,.19],[side*.048,-.15,.2]],t=>.0035*(1-t*.5),{sides:4,segments:5});
+  for(let i=0;i<8;i++){const side=i%2?1:-1;spike(root,fur,[side*rand(.06,.13),rand(-.08,.08),rand(-.15,.04)],[.022,rand(.05,.08),.016],[2.4+rand(-.3,.3),0,side*rand(.2,.6)],.3);}
+  L(head,dark,[torn*.06,-.04,.15],[.012,.02,.05],{rough:.3});L(head,scar,[torn*.064,-.03,.15],[.014,.024,.055],{rough:.5});
   // A thin, rat-like tail with a few clumps of fur.
   const tail=joint(root,[0,.045,-.21],'dog tail');tail.rotation.x=-.34;
   S(tail,skin,[[0,0,0],[0,-.04,-.12],[0,-.08,-.25]],t=>.03-t*.012,{sides:6,rough:.15});

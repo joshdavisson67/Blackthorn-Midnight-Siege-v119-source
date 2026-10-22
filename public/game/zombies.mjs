@@ -1,7 +1,7 @@
 import * as T from './three.module.js';
 import {BRUTE} from './brute.mjs?v=30';
 import {makeRedEyeMaterial,makeEyeGeometry} from './enemy-faces.mjs?v=133';
-import {ENEMY_SURFACE,markEnemySurface} from './enemy-surfaces.mjs?v=133';
+import {ENEMY_SURFACE,markEnemySurface} from './enemy-surfaces.mjs?v=134';
 import {paint,tube,sweep,shard,uvWindow,pooledLump} from './enemy-sculpt.mjs?v=133';
 
 const UP=new T.Vector3(0,1,0), clamp=T.MathUtils.clamp;
@@ -82,6 +82,10 @@ function sculptSkull(rng,h){
       s+=gaussian(x,y,0,-.095,.05,.03)*.02;                         // muzzle
       s-=gaussian(x,y,0,-.16,.07,.04)*.026;                         // lower face sits behind the jaw
       s+=gaussian(ax,y,.1,-.13,.03,.04)*.012;                       // jaw corners
+      { // Nasolabial folds: a crease from the nostril wing to the mouth corner.
+        const t=Math.min(1,Math.max(0,((ax-.032)*.03+(y+.045)*-.06)/(.03*.03+.06*.06))),px=.032+.03*t,py=-.045-.06*t,d=Math.hypot(ax-px,y-py);
+        s-=Math.exp(-((d/.006)**2))*.006;s+=Math.exp(-(((d-.012)/.008)**2))*.003*(ax>px?1:0);
+      }
       z+=s*front;
     }
     // A caved-in fracture somewhere on the crown.
@@ -97,7 +101,7 @@ export function createZombieRig({rng=Math.random,brute=false,feral=false}={}){
   const group=new T.Group(),root=new T.Group();group.add(root);root.position.y=.92;
   const resources={geometries:new Set(),materials:new Set()};
   function material(color,roughness=.87,metalness=0){const m=new T.MeshStandardMaterial({color,roughness,metalness,vertexColors:true});resources.materials.add(m);return m;}
-  const skin=markEnemySurface(material(style.skin,.74),ENEMY_SURFACE.skin),cloth=markEnemySurface(material(style.coat,.92),ENEMY_SURFACE.cloth),pants=markEnemySurface(material(style.pants,.9),ENEMY_SURFACE.leather),boot=markEnemySurface(material(0x221f1b,.62),ENEMY_SURFACE.leather),wound=markEnemySurface(material(0x5c1a20,.42),ENEMY_SURFACE.wound),flesh=markEnemySurface(material(0x7a3b38,.5),ENEMY_SURFACE.wound),bone=markEnemySurface(material(0xa89c7c,.6),ENEMY_SURFACE.bone),hair=markEnemySurface(material(0x2a2a24,.95),ENEMY_SURFACE.fur),lining=markEnemySurface(material(style.shirt,.9),ENEMY_SURFACE.cloth),metal=material(0x6e604a,.55,.55),recess=material(0x0c0708,1),gum=markEnemySurface(material(0x4a2228,.45),ENEMY_SURFACE.wound);
+  const skin=markEnemySurface(material(style.skin,.74),ENEMY_SURFACE.skin),cloth=markEnemySurface(material(style.coat,.92),ENEMY_SURFACE.cloth),pants=markEnemySurface(material(style.pants,.9),ENEMY_SURFACE.leather),boot=markEnemySurface(material(0x221f1b,.62),ENEMY_SURFACE.leather),wound=markEnemySurface(material(0x5c1a20,.42),ENEMY_SURFACE.wound),flesh=markEnemySurface(material(0x7a3b38,.5),ENEMY_SURFACE.wound),bone=markEnemySurface(material(0xa89c7c,.6),ENEMY_SURFACE.bone),hair=markEnemySurface(material(0x2a2a24,.95),ENEMY_SURFACE.fur),lining=markEnemySurface(material(style.shirt,.9),ENEMY_SURFACE.cloth),metal=material(0x6e604a,.55,.55),iron=material(0x3b3a37,.5,.6),recess=material(0x0c0708,1),gum=markEnemySurface(material(0x4a2228,.45),ENEMY_SURFACE.wound);
   const eyes=makeRedEyeMaterial(resources);
   function own(g,opts){resources.geometries.add(g);if(!g.attributes.color)paint(g,opts);return g;}
   const eyeGeo=own(makeEyeGeometry(),{amount:.03,ao:0}),bead=own(new T.SphereGeometry(1,8,6),{amount:.08});
@@ -113,6 +117,12 @@ export function createZombieRig({rng=Math.random,brute=false,feral=false}={}){
   }
   const joint=(parent,pos,name)=>{const j=new T.Group();j.name=name;j.position.set(...pos);parent.add(j);return j;};
   const clothed=!feral&&style.build!=='brute',W=B.chest,Wa=B.waist,D=B.depth,N=B.neck,lim=B.limb;
+  // Small tailoring helpers (v134): raised seams, buttons and hanging rags.
+  const seam=(parent,mat,points)=>S(parent,mat,points,.0026,{sides:4,rough:.2});
+  const button=(parent,mat,pos,r=.0085)=>dot(parent,mat,pos,[r,r,r*.45]);
+  const rag=(parent,mat,x,y,z,len,w=.012,lean=0)=>S(parent,mat,[[x,y,z],[x+lean*.4,y-len*.45,z+.008],[x+lean,y-len,z+.004]],t=>w*(1-t*.55),{sides:5,flat:.22,rough:.25,segments:6});
+  const coatZ=(y,scale)=>{const r=[[-.13,.124],[0,.118],[.15,.128],[.28,.137],[.385,.122],[.47,.09]];for(let i=1;i<r.length;i++)if(y<=r[i][0]||i===r.length-1){const f=Math.min(1,Math.max(0,(y-r[i-1][0])/(r[i][0]-r[i-1][0])));return (r[i-1][1]+(r[i][1]-r[i-1][1])*f)*D*scale;}return .12*D*scale;};
+  const glove=markEnemySurface(material(style.name==='footman'?0xb3ad9d:0x3a2c22,.85),style.name==='footman'?ENEMY_SURFACE.cloth:ENEMY_SURFACE.leather);
 
   // ---- Pelvis and torso ------------------------------------------------------------------------
   const spine=joint(root,[0,.09,0],'spine');
@@ -125,7 +135,7 @@ export function createZombieRig({rng=Math.random,brute=false,feral=false}={}){
   // Sinewy neck and collarbones on the gaunt.
   for(const s of [-1,1]){
     S(spine,skin,[[s*.05,.6,-.01],[s*.045,.53,.035],[s*.028,.47,.075*D]],.011*N,{sides:5});
-    if(B.ribs)S(spine,skin,[[s*.025,.45,.09*D],[s*.11,.455,.082*D],[s*.19*W,.44,.03]],.008,{sides:5,rough:.15});
+    if(B.ribs&&!clothed)S(spine,skin,[[s*.025,.45,.09*D],[s*.11,.455,.082*D],[s*.19*W,.44,.03]],.008,{sides:5,rough:.15});
   }
   if(B.hump>.1)for(const s of [-1,1])L(spine,skin,[s*.09*W,.43,-.06],[.12*W*(.8+B.hump*.4),.07+B.hump*.05,.09*(1+B.hump*.5)],{rough:.2},[0,0,s*.35]);
   // Back: knotted spine through the skin on the starved, feral and brute.
@@ -181,6 +191,43 @@ export function createZombieRig({rng=Math.random,brute=false,feral=false}={}){
     for(let i=0;i<4;i++)S(spine,flesh,[[rand(-.1,.1),rand(.05,.3),.12],[rand(-.1,.1),rand(0,.2),.125]],.005,{sides:4,rough:.3});
     // Shredded trousers held by a rope belt.
   }
+  // ---- Definition: per-archetype tailoring, trinkets and damage ---------------------------------
+  if(style.name==='groundskeeper'){
+    // Horn buttons down the open coat edge, side seams, a knotted scarf, rags.
+    for(let i=0;i<4;i++){const y=.06+i*.095;button(spine,boot,[-.115*W,y,coatZ(y,1.1)*.92+.006]);}
+    for(const s of [-1,1])seam(spine,cloth,[[s*.188*Wa,-.12,0],[s*.19*W,.12,0],[s*.215*W,.3,-.005],[s*.2*W,.4,-.01]]);
+    wear(spine,lining,[[.455,.088*N,.082*N,{z:.012}],[.5,.08*N,.075*N,{z:.016}]],{sides:12,folds:.16,rough:.08},{amount:.3});
+    S(spine,lining,[[.03,.47,.085*N],[.055,.4,.13*D],[.07,.3,.14*D],[.06,.22,.142*D]],t=>.022*(1-t*.4),{sides:6,flat:.3,rough:.2,segments:8});
+    rag(spine,cloth,-.14,-.13,.1,.12,.014,.02);rag(spine,cloth,.09,-.14,-.12,.09,.012,-.02);
+  }else if(style.name==='footman'){
+    // Double-breasted waistcoat and a pleated shirt front.
+    for(let i=0;i<4;i++)for(const s of [-1,1]){const y=.08+i*.075;button(spine,metal,[s*.05,y,coatZ(y,1.06)+.004],.0075);}
+    for(let i=0;i<4;i++)L(spine,lining,[(i-1.5)*.011,.37+i*.01,coatZ(.38,1.03)+.003],[.006,.032,.004],{rough:.3,uv:.15});
+    for(const s of [-1,1])seam(spine,cloth,[[s*.07,-.13,coatZ(-.1,1.11)],[s*.09,.15,coatZ(.15,1.11)],[s*.13,.35,coatZ(.35,1.11)-.01]]);
+  }else if(style.name==='fallen guest'){
+    // Torn lace collar, a brooch, beads, and ragged strips off the skirt.
+    wear(spine,lining,[[.425,.105*W,.09*D,{z:.0}],[.455,.09*N,.08*N,{z:.008}],[.485,.075*N,.07*N,{z:.012}]],{sides:16,ragged:.03,folds:.12,cut:(u,v)=>Math.abs(u-.25)<.06},{amount:.25});
+    L(spine,metal,[.075,.36,coatZ(.36,1.03)+.004],[.012,.015,.005],{rough:.15});dot(spine,gum,[.075,.36,coatZ(.36,1.03)+.008],[.006,.007,.003]);
+    for(let i=0;i<5;i++){const a=(i/5)*Math.PI*2+.4;rag(root,cloth,Math.cos(a)*.2,-.6,Math.sin(a)*.16,rand(.07,.16),.016,rand(-.03,.03));}
+  }else if(style.name==='caretaker'){
+    // Key ring, apron pocket with a rag stuffed in it, loose apron ties.
+    const ring=shape(root,own(new T.TorusGeometry(.026,.004,5,14)),metal,[.165*Wa,.02,.07],[1,1,1],[0,1.2,0]);void ring;
+    for(let i=0;i<3;i++)shape(root,own(shard(rng,{bend:.05})),metal,[.165*Wa+.008*(i-1),-.015,.07+.006*(i-1)],[.008,.045,.004],[Math.PI+rand(-.3,.3),1.2,0]);
+    L(spine,cloth,[.05,-.08,.235],[.07,.05,.012],{rough:.2,flat:-.6});L(spine,lining,[.07,-.03,.238],[.025,.03,.012],{rough:.4});
+    for(const s of [-1,1])S(spine,cloth,[[s*.16,.1,.08],[s*.17,.02,-.06],[s*.12,-.1,-.13]],.006,{sides:4});
+  }else if(style.name==='estate brute'){
+    // An iron slave collar with chain, and a meat hook rammed into the back.
+    wear(spine,iron,[[.49,.088*N,.084*N,{z:.006}],[.53,.084*N,.08*N,{z:.012}]],{sides:14,rough:.04});
+    for(let c=0;c<4;c++)shape(spine,own(new T.TorusGeometry(.017,.005,4,8)),iron,[.0,.47-c*.03,.11+c*.008],[1,1,1],[0,c%2?Math.PI/2:0,0]);
+    S(spine,iron,[[.1,.38,-.11],[.13,.46,-.2],[.12,.54,-.24],[.08,.55,-.2],[.07,.5,-.17]],t=>.009-.006*t,{sides:6,segments:12});
+    L(spine,wound,[.1,.37,-.125],[.04,.035,.015],{rough:.4});
+  }else{
+    // Feral: torn sinew lashing the arms and gut.
+    for(let i=0;i<3;i++)S(spine,flesh,[[rand(-.12,.12),rand(.3,.4),.11],[rand(-.08,.08),rand(.15,.25),.13],[rand(-.06,.06),rand(.0,.1),.1]],.004,{sides:4,rough:.3});
+  }
+  // Adam's apple and wattle on the men.
+  if(style.name!=='fallen guest'&&!feral)L(spine,skin,[0,.53,.064*N],[.014,.02,.012],{rough:.1});
+
   if(clothed&&style.name!=='footman'&&style.name!=='fallen guest'){
     for(const s of [-1,1]){const collar=L(spine,style.name==='groundskeeper'?cloth:lining,[s*.07,.47,.05],[.065,.035,.045],{rough:.25});collar.rotation.z=s*.55;}
   }
@@ -209,6 +256,10 @@ export function createZombieRig({rng=Math.random,brute=false,feral=false}={}){
     dot(head,recess,[ex,ey,ez-.003],[.03,.018,.012],[0,0,-side*.1]);
     const eye=shape(head,eyeGeo,eyes,[ex,ey,ez+.006],[.0125,.0085,.008]);eye.rotation.z=-side*.1;eye.name='Red eye';
     const brow=L(head,skin,[side*.072,.05,surf(side*.072,.05)+.002],[.04,.0065*browWeight,.012],{rough:.2});brow.rotation.z=side*.22;brow.name='Scowling brow';
+    // Heavy, drooping upper lids and bags under the eyes.
+    L(head,skin,[ex,ey+.0115,ez+.005],[.017,.0042,.008],{rough:.15,uv:.15},[0,0,-side*.12]);
+    L(head,skin,[ex,ey-.012,ez+.001],[.019,.0045,.007],{rough:.2,uv:.15});
+    if(style.hair!=='none')for(let i=0;i<4;i++){const bx=side*(.045+i*.013);S(head,hair,[[bx,.053+i*.002,surf(bx,.053)+.003],[bx+side*.012,.057+i*.001,surf(bx+side*.012,.057)+.002]],.0022,{sides:3,segments:2,taper:.6});}
     // Ears: whole, chewed or torn away to a raw hole.
     const earX=side$(side,-.012,-.01);
     if(style.ears[side<0?0:1])L(head,skin,[earX+side*.004,-.012,-.01],[.011,.034,.024],{rough:.2},[0,side*.45,0]);
@@ -229,7 +280,7 @@ export function createZombieRig({rng=Math.random,brute=false,feral=false}={}){
   // The mandible: a hard U of bone under the skin and a pointed chin.
   const jw=style.jaw,chinZ=surf(0,-.15)+.012;
   S(jaw,skin,[J(-.1*jw,-.07,-.01),J(-.08*jw,-.125,surf(.08,-.125)-.006),J(-.035,-.155,surf(.035,-.15)+.004),J(0,-.16,chinZ),J(.035,-.155,surf(.035,-.15)+.004),J(.08*jw,-.125,surf(.08,-.125)-.006),J(.1*jw,-.07,-.01)],t=>.022-.006*Math.sin(t*Math.PI),{sides:7,flat:.75,rough:.1,segments:18});
-  L(jaw,skin,J(0,-.152,chinZ-.006),[.034,.024,.022],{rough:.15});
+  L(jaw,skin,J(0,-.152,chinZ-.01),[.03,.02,.016],{rough:.15});
   // Lips peel back from the teeth; the lipless show bare gums.
   if(style.lipless){
     L(head,gum,[0,-.092,mz+.002],[.056,.01,.01],{rough:.25});
@@ -300,6 +351,8 @@ export function createZombieRig({rng=Math.random,brute=false,feral=false}={}){
       const hem=index===0&&style.name!=='footman'?-.24:-.33;
       wear(calf,pants,[[hem,.064*lim,.068*lim],[-.2,.066*lim,.071*lim],[-.08,.072*lim,.077*lim],[.03,.075*lim,.08*lim]],{folds:.1,ragged:index===0?.05:.025,cut:rng()<.4?hole(rand(.1,.9),.5,.06,.18):null,inner:.06,innerMat:pants},{grime:.5,top:.03,bottom:-.33});
     }
+    if(style.name==='groundskeeper'&&index===0){L(leg,lining,[0,-.37,.079*lim],[.04,.05,.01],{rough:.15,flat:-.8});for(let i=0;i<6;i++){const a=i/6*Math.PI*2;dot(leg,boot,[Math.cos(a)*.04,-.37+Math.sin(a)*.05,.088*lim],[.0025,.0025,.0015]);}}
+    if(style.name==='caretaker')wear(calf,boot,[[-.34,.058*lim,.064*lim],[-.2,.06*lim,.066*lim],[-.08,.068*lim,.072*lim],[-.06,.072*lim,.076*lim]],{rough:.04,folds:.05},{amount:.15,grime:.3,top:-.06,bottom:-.34});
     const foot=joint(calf,[0,-.345,0],tag+' ankle');
     if(barefoot[index]){
       L(foot,skin,[0,-.058,.045],[.048,.032,.105],{rough:.12,flat:-.6});
@@ -309,8 +362,13 @@ export function createZombieRig({rng=Math.random,brute=false,feral=false}={}){
         S(foot,skin,[[x*1.05,-.07,.12],[x*1.12,-.075,.135+len*.4],[x*1.15,-.082,.14+len]],.0085-t*.0008,{sides:4,taper:.3});
         if(feral)shape(foot,own(shard(rng,{bend:.4}),{amount:.2}),bone,[x*1.15,-.083,.14+len],[.007,.025,.007],[Math.PI/2+.3,0,0]);
       }
+    }else if(style.name==='fallen guest'){
+      // A single ruined evening shoe: a low pump on a snapped heel.
+      L(foot,boot,[0,-.06,.06],[.045,.03,.11],{rough:.06,flat:-.6,pull:[0,.2,1]});L(foot,skin,[0,-.03,.0],[.036,.035,.04],{rough:.12});
+      shape(foot,own(shard(rng,{bend:.05})),boot,[0,-.07,-.03],[.016,.04,.016],[Math.PI-.15,0,0]);
     }else{
       wear(foot,boot,[[-.05,.052,.058],[.02,.05,.055],[.07,.055,.06]],{rough:.06,folds:.06},{grime:.4,top:.07,bottom:-.05});
+      L(foot,boot,[0,-.06,-.045],[.045,.03,.035],{rough:.08});
       L(foot,boot,[0,-.045,.058],[.062,.05,.13],{rough:.08,flat:-.55,pull:[0,.25,1]});
       L(foot,boot,[0,-.082,.055],[.066,.012,.14],{rough:.05});
       for(let i=0;i<3;i++)S(foot,lining,[[-.03,.0+i*.02,.06-i*.004],[0,.004+i*.02,.064-i*.004],[.03,.0+i*.02,.06-i*.004]],.0025,{sides:3,segments:3});
@@ -334,22 +392,29 @@ export function createZombieRig({rng=Math.random,brute=false,feral=false}={}){
     if(exposed){S(forearm,bone,[[0,.0,.0],[.004,-.12,.012],[0,-.27,.006]],.011,{sides:6,rough:.15});S(forearm,bone,[[.012,-.03,-.01],[.016,-.15,0],[.012,-.27,-.004]],.008,{sides:5,rough:.15});}
     if(sl==='full'){const r=[[-.25,.05*lim,.047*lim],[-.15,.056*lim,.054*lim],[-.05,.064*lim,.062*lim],[.03,.066*lim,.064*lim]];wear(forearm,cloth,r,{folds:.12,ragged:.045,inner:.06,innerMat:lining},{grime:.4,top:.03,bottom:-.25});}
     else for(let i=0;i<2;i++)S(forearm,skin,[[(i?.012:-.012),-.04,.034*lim],[(i?.014:-.01),-.16,.03*lim],[(i?.01:-.008),-.26,.022*lim]],.005,{sides:4});
+    if(style.name==='caretaker'&&index===0){for(let i=0;i<4;i++)wear(forearm,lining,[[-.08-i*.04,.05*lim,.047*lim,{twist:i}],[-.055-i*.04,.051*lim,.048*lim]],{sides:12,ragged:.006,rough:.06},{amount:.25});for(let i=0;i<3;i++)L(forearm,wound,[rand(-.02,.02),-.09-i*.05,.05*lim],[.012,.016,.004],{rough:.4});}
+    if(feral)shape(forearm,own(shard(rng,{bend:.2})),bone,[0,.0,-.045],[.014,.05,.014],[-2.2,0,0]);
+    if(brute&&index===0){wear(forearm,boot,[[-.26,.05*lim,.048*lim],[-.15,.056*lim,.054*lim],[-.04,.062*lim,.06*lim]],{rough:.05,folds:.05},{amount:.2});for(const y of [-.22,-.12])wear(forearm,iron,[[y,.058*lim,.056*lim],[y+.012,.06*lim,.058*lim]],{sides:10});}
     if(brute){
       // Iron shackle and a length of broken chain.
-      wear(forearm,metal,[[-.27,.042*lim,.04*lim],[-.23,.042*lim,.04*lim]],{sides:10,rough:.04});
-      for(let c=0;c<3;c++){const link=shape(forearm,own(new T.TorusGeometry(.016,.0045,4,8)),metal,[.03*side,-.27-c*.026,.025],[1,1,1],[0,c%2?Math.PI/2:0,0]);void link;}
+      wear(forearm,iron,[[-.27,.042*lim,.04*lim],[-.23,.042*lim,.04*lim]],{sides:10,rough:.04});
+      for(let c=0;c<3;c++){const link=shape(forearm,own(new T.TorusGeometry(.016,.0045,4,8)),iron,[.03*side,-.27-c*.026,.025],[1,1,1],[0,c%2?Math.PI/2:0,0]);void link;}
     }
     const hand=joint(forearm,[0,-.29,.014],tag+' wrist');
-    L(hand,skin,[0,-.044,.002],[.038*lim,.05,.018*lim],{rough:.12,flat:null});
+    // Work gloves and footman's whites; one glove torn off at two fingers.
+    const gloved=style.name==='footman'||(style.name==='groundskeeper'&&index===0),hm=gloved?glove:skin;
+    L(hand,hm,[0,-.044,.002],[.038*lim,.05,.018*lim],{rough:.12,flat:null});
+    if(gloved&&style.name==='footman')wear(hand,glove,[[-.02,.034*lim,.024*lim],[.012,.036*lim,.026*lim]],{sides:10,ragged:.004,folds:.08},{amount:.2});
+    if(!gloved)for(let t=0;t<3;t++){const x=(t-1)*.014*lim;S(hand,skin,[[x*.6,-.012,-.012],[x,-.05,-.015],[x*1.15,-.078,-.012]],.0026,{sides:4,segments:4});}
     for(let f=0;f<4;f++){
-      const x=(f-1.5)*.02*lim,c=rand(.3,1.1),len=(f===0||f===3?.85:1)*(feral?1.25:1);
-      S(hand,skin,[[x,-.082,.004],[x*1.05,-.082-.032*len,.01+c*.008],[x*1.1,-.082-.06*len,.022+c*.024],[x*1.12,-.082-.08*len,.04+c*.048]],t=>(.0082-.002*t+.0012*Math.sin(t*Math.PI*2.4))*lim,{sides:5,segments:8});
-      dot(hand,skin,[x,-.08,.012],[.01,.008,.009]);
+      const x=(f-1.5)*.02*lim,c=rand(.3,1.1),len=(f===0||f===3?.85:1)*(feral?1.25:1),fm=gloved&&!(style.name==='footman'&&index===1&&f>1)?glove:skin;
+      S(hand,fm,[[x,-.082,.004],[x*1.05,-.082-.032*len,.01+c*.008],[x*1.1,-.082-.06*len,.022+c*.024],[x*1.12,-.082-.08*len,.04+c*.048]],t=>(.0082-.002*t+.0012*Math.sin(t*Math.PI*2.4))*lim,{sides:5,segments:8});
+      dot(hand,fm,[x,-.08,.012],[.01,.008,.009]);dot(hand,fm,[x*1.08,-.082-.044*len,.012+c*.016],[.0085,.007,.008]);
       const tip=[x*1.12,-.082-.08*len,.04+c*.048];
       if(feral)shape(hand,own(shard(rng,{bend:.5}),{amount:.25}),bone,tip,[.009,.045,.009],[Math.PI+.4+c*.4,0,0]);
-      else dot(hand,boot,tip,[.006,.004,.006]);
+      else if(fm===skin)dot(hand,boot,tip,[.006,.004,.006]);
     }
-    S(hand,skin,[[side*.03,-.03,.012],[side*.045,-.06,.026],[side*.045,-.09,.04]],.0095*lim,{sides:5,taper:.3});
+    S(hand,hm,[[side*.03,-.03,.012],[side*.045,-.06,.026],[side*.045,-.09,.04]],.0095*lim,{sides:5,taper:.3});
     arms.push({pivot:arm,forearm,hand});pieces.push({node:arm,a:tag+'shoulder',b:tag+'elbow'},{node:forearm,a:tag+'elbow',b:tag+'wrist'},{node:hand,a:tag+'wrist',b:tag+'palm'});
   }
   void belt;

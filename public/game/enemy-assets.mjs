@@ -1,8 +1,8 @@
 import * as T from './three.module.js';
 import {BRUTE} from './brute.mjs?v=30';
-import {createZombieRig,tagZombie,rollGait} from './zombies.mjs?v=133';
-import {createZombieDogRig} from './zombie-dog.mjs?v=133';
-import {ENEMY_SURFACE,enemySurfaces,atlasUV,enemySurfaceShader} from './enemy-surfaces.mjs?v=133';
+import {createZombieRig,tagZombie,rollGait} from './zombies.mjs?v=134';
+import {createZombieDogRig} from './zombie-dog.mjs?v=134';
+import {ENEMY_SURFACE,enemySurfaces,atlasUV,enemySurfaceShader,addDetailCoordinates} from './enemy-surfaces.mjs?v=134';
 
 export function bakeEnemyPalette(rig){
   const palette=new Map(),geometries=new Map(),red=new T.Color(0xff3925),surfaces=enemySurfaces();
@@ -13,7 +13,7 @@ export function bakeEnemyPalette(rig){
     const key=material.side;
     if(!palette.has(key)){
       const merged=material.clone();merged.color.setRGB(1,1,1);merged.roughness=.87;merged.metalness=0;merged.userData.bakedPalette=true;
-      merged.map=surfaces.map;merged.bumpMap=surfaces.bumpMap;merged.bumpScale=.0008;merged.userData.enemySurfaceAtlas=true;
+      merged.map=surfaces.map;merged.bumpMap=surfaces.bumpMap;merged.bumpScale=.9;merged.userData.enemySurfaceAtlas=true;
       merged.onBeforeCompile=shader=>{
         shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nattribute vec2 surfaceFinish;varying vec2 vSurfaceFinish;').replace('#include <begin_vertex>','#include <begin_vertex>\nvSurfaceFinish=surfaceFinish;');
         shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec2 vSurfaceFinish;').replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=vSurfaceFinish.x;').replace('#include <metalnessmap_fragment>','#include <metalnessmap_fragment>\nmetalnessFactor=vSurfaceFinish.y;');
@@ -50,6 +50,8 @@ export function createEnemyAssets(batch){
     // Roughness, metalness, normals, silhouettes and rage colors are retained.
     bakeEnemyPalette(rig);batch(rig.group);tagZombie(rig,null);
     // Retain merged buffers as well as the few remaining unmerged primitives.
+    // Close-range detail coordinates are taken from each joint's merged geometry.
+    rig.group.traverse(o=>{if(o.isMesh&&o.material.userData.bakedPalette&&!o.geometry.attributes.detailUv)addDetailCoordinates(o.geometry);});
     rig.group.traverse(o=>{if(o.isMesh){rig.resources.geometries.add(o.geometry);o.geometry.computeBoundingBox();o.geometry.computeBoundingSphere();o.updateMatrix();o.matrixAutoUpdate=false;}});
     templates.push(rig);
   }
