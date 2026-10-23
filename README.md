@@ -27,6 +27,11 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Double-tap to fire (version 141)
+
+- **New touch fire.** With touch controls on, a quick tap on the right side of the screen followed by a second tap within 0.3 s, near the same spot, fires the gun. Holding the second tap holds the trigger, so automatic weapons keep firing, and dragging it still aims, just like holding FIRE. Lifting it stops. The FIRE button works as before.
+- **No accidental shots.** Only short, still taps count: a look drag, a press longer than a quarter second, a second tap that comes too late or lands far from the first never fires. A double tap that has fired does not chain into the next tap.
+
 ## Sculpted arms and working elbows (version 140)
 
 - **Arms with anatomy.** Upper arms are no longer capped tubes: a deltoid wraps the shoulder and tapers to a V, biceps and triceps bellies sit front and back, the elbow has bony knobs and a pointed olecranon, and forearms are thick under the elbow and flat at the wrist. Starved and gaunt arms are bony with veins over the biceps, the bloated caretaker's sag under the arm, the brute's are heavy and scarred, and the feral's are wiry. Every arm rolls its own muscle sizes, so the left and right arms differ.
