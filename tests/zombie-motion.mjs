@@ -19,7 +19,7 @@ export function verifyZombieMotion(qa,frames){
   assert.equal(new Set(gaits.map(g=>JSON.stringify(g))).size,20,'Every walker rolls its own gait');
   assert(gaits.some(g=>g.dragLeg===0)&&gaits.some(g=>g.dragLeg===1),'Either leg can be the dragged one');
   assert(new Set(gaits.map(g=>g.arms)).size>=3,'Arm carriage varies across a crowd');
-  for(const key of ['sway','hunch','armLag','bob','scuff'])assert(range(gaits.map(g=>g[key]))>.15,`${key} varies across a crowd`);
+  for(const key of ['sway','hunch','armLag','bob','scuff','elbowSwing','loose'])assert(range(gaits.map(g=>g[key]))>.15,`${key} varies across a crowd`);
   for(const g of gaits)assert(ARM_POSES.includes(g.arms));
 
   // ---- Drag leg: the chosen leg takes the shorter, scuffing stride -----------
@@ -93,6 +93,41 @@ export function verifyZombieMotion(qa,frames){
     const claw=walker(45,{arms:'claw'});const swings=cycle(claw,r=>r.arms[0].pivot.rotation.x);assert(mean(swings)<-.8&&range(swings)>.3,'Clawing arms stay raised and grasp at the air');
   }
   console.log('PASS: six attack styles (grab, swipe, bite, flail, slam, pounce) with distinct poses and the same single contact frame; broken and clawing arm carriages; type-appropriate styles for ferals and brutes.');
+
+  // ---- Elbows (v140): they bend, pump with the stride and differ per zombie --
+  {
+    for(const arms of ['reach','dangle','clutch','claw']){
+      const elbows=[3,11,21,45].map(seed=>cycle(walker(seed,{arms}),r=>r.arms[0].forearm.rotation.x,420).slice(180));
+      for(const v of elbows){
+        assert(range(v)>.3,`${arms}: the elbow flexes and opens through the stride`);
+        assert(Math.max(...v)<=.05,`${arms}: the elbow never bends backwards`);
+        assert(Math.min(...v)>-2.35,`${arms}: the elbow stays in a human range`);
+      }
+      assert(range(elbows.map(mean))>.08,`${arms}: each zombie carries its own elbow bend`);
+    }
+    // Forearms follow through: the elbow peaks after the shoulder swing peaks.
+    const e=walker(21,{arms:'dangle',armLag:.3}),pairs=cycle(e,r=>[r.arms[0].pivot.rotation.x,r.arms[0].forearm.rotation.x],420).slice(180);
+    const fwd=pairs.reduce((b,x,i)=>x[0]<pairs[b][0]?i:b,0),flexed=pairs.reduce((b,x,i)=>x[1]<pairs[b][1]?i:b,0);
+    assert(flexed!==fwd,'The forearm trails the upper arm instead of moving rigidly with it');
+    // Standing still, the elbows keep shifting a little rather than freezing.
+    const idle=walker(11,{arms:'dangle'});idle.speed=1.2;const still=[];for(let i=0;i<400;i++){animateZombie(idle,1/60,6,0);if(i>100)still.push(idle.arms[1].forearm.rotation.x);}
+    assert(range(still)>.04,'Idle elbows drift instead of locking');
+    // Sculpted arms: the deltoid flares wider than the mid upper arm, the cap
+    // tucks under the shoulder line, and the wrist is flatter than it is wide.
+    for(const seed of [3,11,21,45,52]){
+      const rig=createZombieRig({rng:seeded(seed)});
+      for(const arm of rig.arms){
+        const p=arm.pivot.children.find(o=>o.isMesh).geometry.attributes.position,band=(y0,y1)=>{let x=0;for(let i=0;i<p.count;i++){const y=p.getY(i);if(y>y0&&y<y1)x=Math.max(x,Math.abs(p.getX(i)));}return x;};
+        let top=-1;for(let i=0;i<p.count;i++)top=Math.max(top,p.getY(i));
+        assert(top<.07,'The shoulder cap sits below the old capsule top');
+        assert(band(-.04,.02)>band(-.24,-.2)*1.12,'The deltoid flares out over the upper arm');
+        const f=arm.forearm.children.find(o=>o.isMesh).geometry;f.computeBoundingBox();
+        const w=f.attributes.position;let wx=0,wz=0;for(let i=0;i<w.count;i++)if(Math.abs(w.getY(i)+.285)<.006){wx=Math.max(wx,Math.abs(w.getX(i)));wz=Math.max(wz,Math.abs(w.getZ(i)-.012));}
+        assert(wx>wz*1.15,'The wrist is flatter than it is deep');
+      }
+    }
+  }
+  console.log('PASS: elbows bend, pump with the stride, follow through and differ per zombie; sculpted deltoid, tucked shoulder cap and flat wrist.');
 
   // ---- Crawlers: leg damage, the drop, and the crawl pose -------------------
   {

@@ -66,7 +66,9 @@ export function lump(rng,{w=12,h=9,rough=.14,freq=1,flat=null,pull=null}={}){
 //   ridge       a bony front edge (shins, forearms) ribs  rib ridges
 //   ragged      a torn bottom hem cut(u,v)          drop faces (holes, open fronts)
 //   inner       also build a reversed lining shell, (1-inner) times the radius
-export function tube(rng,rings,{sides=12,rough=0,freq=7,folds=0,foldFreq=5,ridge=0,ridgeAngle=Math.PI/2,ribs=0,ribRange=[0,1],ribFreq=26,back=0,ragged=0,raggedTop=0,cut=null,inner=0,belly=0}={}){
+//   relief(y,a) extra relative radius at height y and angle a (v140 muscles:
+//               a=0 is +X, a=PI/2 is +Z, the front of the body)
+export function tube(rng,rings,{sides=12,rough=0,freq=7,folds=0,foldFreq=5,ridge=0,ridgeAngle=Math.PI/2,ribs=0,ribRange=[0,1],ribFreq=26,back=0,ragged=0,raggedTop=0,cut=null,inner=0,belly=0,relief=null}={}){
   const n=makeNoise(rng),jag=[],jagTop=[];
   for(let i=0;i<=sides;i++){
     if(i===sides){jag.push(jag[0]);jagTop.push(jagTop[0]);continue;}
@@ -84,6 +86,7 @@ export function tube(rng,rings,{sides=12,rough=0,freq=7,folds=0,foldFreq=5,ridge
         if(ridge){const da=Math.atan2(Math.sin(a-ridgeAngle),Math.cos(a-ridgeAngle));r+=ridge*Math.exp(-da*da/.18);}
         if(back&&sa<0)r-=back*sa*sa;
         if(belly&&sa>0)r+=belly*sa*sa*Math.sin(Math.PI*t);
+        if(relief)r+=relief(y,i/sides*Math.PI*2);
         if(ribs&&t>=ribRange[0]&&t<=ribRange[1]&&Math.abs(ca)>.08){const side=Math.max(0,sa+.35);r+=ribs*side*(Math.pow(Math.max(0,Math.sin(y*ribFreq)),3)-.25);}
         r*=scale;
         let yy=y;if(j===0)yy-=jag[i];if(j===rings.length-1)yy+=jagTop[i];
