@@ -389,7 +389,7 @@ body.touch-playing #touchControls{display:block;position:fixed;inset:0;z-index:6
    Bottom centre, between the stick and the buttons: health and ammo. */
 body.touch-playing #hud{--hud-map-size:92px;--hud-stack-gap:4px}
 body.touch-playing .topHud{top:58px;left:calc(env(safe-area-inset-left,0px) + 14px);right:auto}
-body.touch-playing .round b{font-size:34px}
+body.touch-playing .round>b{font-size:34px}
 body.touch-playing .round span{margin-top:2px}
 body.touch-playing .hudNavigation{top:8px;right:calc(env(safe-area-inset-right,0px) + 12px)}
 body.touch-playing .hudNavigation .score{width:auto}
@@ -437,3 +437,12 @@ body.pad-playing{cursor:none}
 
 /* Bone chips (v131 Easter egg). */
 #boneHud{margin-top:6px;color:#e9dfc8;font-size:11px;letter-spacing:1.5px}
+/* Phones (v142): body.phone-ui is set by the phone check in game.js. Event
+   badge and announcements shrink to fit a landscape phone screen. */
+body.phone-ui .worldEventBadge{width:auto;max-width:min(210px,40vw);margin-top:6px;padding:5px 8px;gap:6px;border-left-width:2px;box-shadow:0 2px 8px #0005}
+body.phone-ui .round .worldEventBadge .eventSymbol{width:15px;font-size:15px}
+body.phone-ui .worldEventBadge strong{font-size:9px;letter-spacing:1px;line-height:1.2}
+body.phone-ui .round .worldEventBadge b{margin:1px 0;font-size:12px;line-height:1.2;letter-spacing:.3px}
+body.phone-ui .round .worldEventBadge small{font-size:8px;letter-spacing:.2px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+body.phone-ui #banner{top:21%;left:50%;width:min(460px,64vw);transform:translateX(-50%);padding:0;font-size:24px;letter-spacing:3px;line-height:1.05}
+body.phone-ui #banner small{margin-top:5px;font-size:9px;letter-spacing:1px;line-height:1.4}

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {detectDevice,createControlScheme,CONTROL_STORAGE_KEY,LEGACY_TOUCH_KEY} from '../public/game/input-scheme.mjs';
+import {detectDevice,detectPhone,PHONE_MAX,createControlScheme,CONTROL_STORAGE_KEY,LEGACY_TOUCH_KEY} from '../public/game/input-scheme.mjs';
 
 // A fake browser window: media query answers, navigator hints, gamepads and
 // the events the scheme listens for.
@@ -126,4 +126,28 @@ for(const device of [DESKTOP,PHONE]){
   const saved=createControlScheme({win:fakeWindow(DESKTOP),storage:memoryStorage({[CONTROL_STORAGE_KEY]:JSON.stringify({device:'desktop',scheme:'controller'})}),controllerSupported:true});
   assert.equal(saved.scheme,'standard','A saved controller choice never starts without a controller');
 }
-console.log('PASS: control schemes — phones load touch, computers load mouse/keyboard (touchscreen laptops and stylus phones included), platform-hint fallbacks, retired global switch cleared, per-device remembered choices, live trackpad attach/detach, controller takeover/hand-back, and last-device-used switching that is never saved.');
+// ---- Phones (v142): touch devices with a short screen side get the compact HUD
+{
+  const sized=(base,w,h,inner)=>Object.assign(fakeWindow(base),{screen:{width:w,height:h},innerWidth:inner?.[0]??w,innerHeight:inner?.[1]??h});
+  assert.equal(detectPhone(sized(PHONE,390,844)),true,'A portrait phone is a phone');
+  assert.equal(detectPhone(sized(PHONE,932,430)),true,'A large landscape phone is a phone');
+  assert.equal(detectPhone(sized(PHONE,820,1180)),false,'A tablet keeps the full HUD');
+  assert.equal(detectPhone(sized(PHONE,768,1024)),false,'A small tablet keeps the full HUD');
+  assert.equal(detectPhone(sized(DESKTOP,1280,500)),false,'A short desktop window is not a phone');
+  assert.equal(detectPhone(Object.assign(fakeWindow(PHONE),{innerWidth:844,innerHeight:390})),true,'Without screen info the viewport decides');
+  assert.equal(detectPhone(sized(PHONE,PHONE_MAX,900)),true);assert.equal(detectPhone(sized(PHONE,PHONE_MAX+1,900)),false);
+  // The scheme reports it, and re-checks when the device changes.
+  const win=sized(PHONE,390,844),scheme=createControlScheme({win,storage:memoryStorage()});
+  assert.equal(scheme.phone,true,'The control scheme reports a phone at load');
+  win.screen={width:1440,height:900};win.setPointer(DESKTOP);assert.equal(scheme.phone,false,'Switching to a desktop pointer clears the phone layout');
+  win.screen={width:390,height:844};win.setPointer(PHONE);assert.equal(scheme.phone,true);
+  scheme.dispose();
+}
+// The phone stylesheet shrinks the event badge and banner, and the touch HUD's
+// big wave number no longer inflates the event countdown.
+{
+  const {readFileSync}=await import('node:fs');const css=readFileSync(new URL('../public/game/style.css',import.meta.url),'utf8');
+  for(const rule of ['body.phone-ui .worldEventBadge{','body.phone-ui .round .worldEventBadge b{','body.phone-ui #banner{','body.phone-ui #banner small{'])assert(css.includes(rule),`Phone stylesheet has ${rule}`);
+  assert(css.includes('body.touch-playing .round>b{font-size:34px}')&&!css.includes('body.touch-playing .round b{'),'Only the wave number gets the big touch size');
+}
+console.log('PASS: control schemes — phone check for the compact HUD (phones yes, tablets and desktops no), phones load touch, computers load mouse/keyboard (touchscreen laptops and stylus phones included), platform-hint fallbacks, retired global switch cleared, per-device remembered choices, live trackpad attach/detach, controller takeover/hand-back, and last-device-used switching that is never saved.');

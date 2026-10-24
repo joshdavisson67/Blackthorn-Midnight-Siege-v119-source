@@ -30,4 +30,4 @@ byId('retry').addEventListener('click',()=>location.reload());
 window.addEventListener('error',event=>{if(event.error)report(event.error);});
 window.addEventListener('unhandledrejection',event=>report(event.reason));
 const timeout=setTimeout(()=>{if(!ready&&!failed){byId('loading').classList.add('hidden');byId('error').classList.remove('hidden');byId('errorDetails').textContent='The estate is taking too long to load. Try reloading the game.';}},45000);
-import('./game.js?v=141').then(()=>clearTimeout(timeout)).catch(report);
+import('./game.js?v=142').then(()=>clearTimeout(timeout)).catch(report);
