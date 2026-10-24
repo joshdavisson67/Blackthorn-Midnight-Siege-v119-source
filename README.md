@@ -27,6 +27,13 @@ Combat now uses ten prebuilt enemy templates with shared geometry/materials and 
 
 The expansion uses spatial collision lookup, reusable navigation buffers, local enemy spawn selection, spatial mesh batches, and eight pooled lights for the new wings. These keep cost bounded as the estate grows; real browser frame rates remain unmeasured.
 
+## Phone-sized event HUD (version 142)
+
+- **Phone check.** The game now tells phones from tablets and computers: a touch device whose screen's short side is 540 px or less counts as a phone. It checks at load, whenever the screen rotates or resizes, and again when you enter the mansion, and switches on a compact phone layout.
+- **Smaller random-event UI on phones.** The event badge (Shroud, Surge, Grave Awakening, Blackout) shrinks from 300×114 to about 200×60 px on a landscape phone, with a 12 px countdown and a two-line description. The centre announcement drops from 44 px to 24 px and wraps in a narrower column near the top, so it no longer runs across the whole screen or over the badge.
+- **Touch countdown fix.** The touch layout's big wave-number size also enlarged the event countdown to 34 px; it now applies to the wave number only, which fixes tablets too.
+- Tablets and computers keep the full-size HUD.
+
 ## Double-tap to fire (version 141)
 
 - **New touch fire.** With touch controls on, a quick tap on the right side of the screen followed by a second tap within 0.3 s, near the same spot, fires the gun. Holding the second tap holds the trigger, so automatic weapons keep firing, and dragging it still aims, just like holding FIRE. Lifting it stops. The FIRE button works as before.

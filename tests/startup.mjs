@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const boot=readFileSync(new URL('../public/game/boot.js',import.meta.url),'utf8');
-const gameImport="import('./game.js?v=141')";
+const gameImport="import('./game.js?v=142')";
 assert(boot.includes(gameImport),'Startup checks must execute the current game import');
 const source=boot.replace(gameImport,'loadGame()');
 function fixture({search='',embedded=false}={}){

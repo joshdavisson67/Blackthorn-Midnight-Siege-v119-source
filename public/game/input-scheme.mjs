@@ -27,6 +27,16 @@ export function detectDevice(win=globalThis){
   return 'desktop';
 }
 
+// Phones (v142): a touch device whose screen's short side is at most
+// PHONE_MAX CSS px. Tablets have touch too but room for the full-size HUD.
+export const PHONE_MAX=540;
+export function detectPhone(win=globalThis,device=detectDevice(win)){
+  if(device!=='touch')return false;
+  const s=win.screen||{},w=s.width||win.innerWidth||0,h=s.height||win.innerHeight||0;
+  const short=Math.min(w||h,h||w);
+  return short>0&&short<=PHONE_MAX;
+}
+
 // Browsers only reveal a gamepad after one of its buttons is pressed while the
 // page is open, so a controller is usually found by the connect event rather
 // than at load.
@@ -41,7 +51,7 @@ export function defaultScheme({device,controller=false,controllerSupported=false
 
 export function createControlScheme({win=globalThis,storage,controllerSupported=false,onChange=()=>{}}={}){
   if(storage===undefined){try{storage=win.localStorage;}catch{storage=null;}}
-  let device=detectDevice(win),controller=connectedController(win),choice=null,scheme=null,dismissed=false;
+  let device=detectDevice(win),phone=detectPhone(win,device),controller=connectedController(win),choice=null,scheme=null,dismissed=false;
   try{storage?.removeItem(LEGACY_TOUCH_KEY);}catch{}
   function readChoice(){
     try{
@@ -64,6 +74,7 @@ export function createControlScheme({win=globalThis,storage,controllerSupported=
   function refresh(reason='device'){
     const nextDevice=detectDevice(win);
     if(nextDevice!==device){device=nextDevice;choice=readChoice();}
+    phone=detectPhone(win,device);
     controller=connectedController(win);update(reason);
   }
   // The last device actually used takes over without being saved: pressing a
@@ -94,7 +105,7 @@ export function createControlScheme({win=globalThis,storage,controllerSupported=
     listen(list,'change',()=>refresh('device'));
   }
   return {
-    get scheme(){return scheme;},get device(){return device;},get controller(){return controller;},get choice(){return choice;},
+    get scheme(){return scheme;},get device(){return device;},get phone(){return phone;},get controller(){return controller;},get choice(){return choice;},
     choose,refresh,noteInput,
     dispose(){for(const off of listeners.splice(0))off();}
   };
